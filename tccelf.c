@@ -1695,7 +1695,6 @@ ST_FUNC void tcc_add_runtime(TCCState *s1)
 #endif
         if (lpthread)
             tcc_add_library_err(s1, "pthread");
-        tcc_add_library_err(s1, "c");
 #ifdef TCC_LIBGCC
         if (!s1->static_link) {
             if (TCC_LIBGCC[0] == '/')

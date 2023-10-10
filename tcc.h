@@ -353,7 +353,7 @@ extern long double strtold (const char *__nptr, char **__endptr);
 
 /* (target specific) libtcc1.a */
 #ifndef TCC_LIBTCC1
-# define TCC_LIBTCC1 "libtcc1.a"
+# define TCC_LIBTCC1 ""
 #endif
 
 #ifndef CONFIG_TCC_CROSSPREFIX
