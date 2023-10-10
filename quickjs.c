@@ -61,14 +61,10 @@
 
 /* define to include Atomics.* operations which depend on the OS
    threads */
-#if !defined(EMSCRIPTEN)
 #define CONFIG_ATOMICS
-#endif
 
-#if !defined(EMSCRIPTEN)
 /* enable stack limitation */
 #define CONFIG_STACK_CHECK
-#endif
 
 
 /* dump object free */
@@ -1672,8 +1668,6 @@ static inline size_t js_def_malloc_usable_size(void *ptr)
     return malloc_size(ptr);
 #elif defined(_WIN32)
     return _msize(ptr);
-#elif defined(EMSCRIPTEN)
-    return 0;
 #elif defined(__linux__)
     return malloc_usable_size(ptr);
 #else
@@ -1746,8 +1740,6 @@ static const JSMallocFunctions def_malloc_funcs = {
     malloc_size,
 #elif defined(_WIN32)
     (size_t (*)(const void *))_msize,
-#elif defined(EMSCRIPTEN)
-    NULL,
 #elif defined(__linux__)
     (size_t (*)(const void *))malloc_usable_size,
 #else
