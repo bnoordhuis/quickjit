@@ -49,7 +49,6 @@
 #endif
 
 #define OPTIMIZE         1
-#define SHORT_OPCODES    1
 #if defined(EMSCRIPTEN)
 #define DIRECT_DISPATCH  0
 #else
@@ -16218,11 +16217,7 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
 #else
     static const void * const dispatch_table[256] = {
 #define DEF(id, size, n_pop, n_push, f) && case_OP_ ## id,
-#if SHORT_OPCODES
 #define def(id, size, n_pop, n_push, f)
-#else                                                     
-#define def(id, size, n_pop, n_push, f) && case_default,
-#endif
 #include "quickjs-opcode.h"
         [ OP_COUNT ... 255 ] = &&case_default
     };
@@ -16329,7 +16324,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
             *sp++ = JS_DupValue(ctx, b->cpool[get_u32(pc)]);
             pc += 4;
             BREAK;
-#if SHORT_OPCODES
         CASE(OP_push_minus1):
         CASE(OP_push_0):
         CASE(OP_push_1):
@@ -16371,7 +16365,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
                 sp[-1] = val;
             }
             BREAK;
-#endif
         CASE(OP_push_atom_value):
             *sp++ = JS_AtomToValue(ctx, get_u32(pc));
             pc += 4;
@@ -16622,14 +16615,12 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
                     goto exception;
             }
             BREAK;
-#if SHORT_OPCODES
         CASE(OP_call0):
         CASE(OP_call1):
         CASE(OP_call2):
         CASE(OP_call3):
             call_argc = opcode - OP_call0;
             goto has_call_argc;
-#endif
         CASE(OP_call):
         CASE(OP_tail_call):
             {
@@ -17044,7 +17035,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
             }
             BREAK;
 
-#if SHORT_OPCODES
         CASE(OP_get_loc8): *sp++ = JS_DupValue(ctx, var_buf[*pc++]); BREAK;
         CASE(OP_put_loc8): set_value(ctx, &var_buf[*pc++], *--sp); BREAK;
         CASE(OP_set_loc8): set_value(ctx, &var_buf[*pc++], JS_DupValue(ctx, sp[-1])); BREAK;
@@ -17085,7 +17075,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
         CASE(OP_set_var_ref1): set_value(ctx, var_refs[1]->pvalue, JS_DupValue(ctx, sp[-1])); BREAK;
         CASE(OP_set_var_ref2): set_value(ctx, var_refs[2]->pvalue, JS_DupValue(ctx, sp[-1])); BREAK;
         CASE(OP_set_var_ref3): set_value(ctx, var_refs[3]->pvalue, JS_DupValue(ctx, sp[-1])); BREAK;
-#endif
 
         CASE(OP_get_var_ref):
             {
@@ -17261,7 +17250,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
             if (unlikely(js_poll_interrupts(ctx)))
                 goto exception;
             BREAK;
-#if SHORT_OPCODES
         CASE(OP_goto16):
             pc += (int16_t)get_u16(pc);
             if (unlikely(js_poll_interrupts(ctx)))
@@ -17272,7 +17260,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
             if (unlikely(js_poll_interrupts(ctx)))
                 goto exception;
             BREAK;
-#endif
         CASE(OP_if_true):
             {
                 int res;
@@ -17313,7 +17300,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
                     goto exception;
             }
             BREAK;
-#if SHORT_OPCODES
         CASE(OP_if_true8):
             {
                 int res;
@@ -17354,7 +17340,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
                     goto exception;
             }
             BREAK;
-#endif
         CASE(OP_catch):
             {
                 int32_t diff;
@@ -18614,7 +18599,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
             } else {
                 goto free_and_set_false;
             }
-#if SHORT_OPCODES
         CASE(OP_is_undefined):
             if (JS_VALUE_GET_TAG(sp[-1]) == JS_TAG_UNDEFINED) {
                 goto set_true;
@@ -18643,7 +18627,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
             }
         free_and_set_true:
             JS_FreeValue(ctx, sp[-1]);
-#endif
         set_true:
             sp[-1] = JS_TRUE;
             BREAK;
@@ -20126,7 +20109,6 @@ static const JSOpCode opcode_info[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)] = {
 #undef FMT
 };
 
-#if SHORT_OPCODES
 /* After the final compilation pass, short opcodes are used. Their
    opcodes overlap with the temporary opcodes which cannot appear in
    the final bytecode. Their description is after the temporary
@@ -20134,9 +20116,6 @@ static const JSOpCode opcode_info[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)] = {
 #define short_opcode_info(op)           \
     opcode_info[(op) >= OP_TEMP_START ? \
                 (op) + (OP_TEMP_END - OP_TEMP_START) : (op)]
-#else
-#define short_opcode_info(op) opcode_info[op]
-#endif
 
 static __exception int next_token(JSParseState *s);
 
@@ -21521,10 +21500,8 @@ static BOOL js_is_live_code(JSParseState *s) {
     case OP_throw:
     case OP_throw_error:
     case OP_goto:
-#if SHORT_OPCODES
     case OP_goto8:
     case OP_goto16:
-#endif
     case OP_ret:
         return FALSE;
     default:
@@ -28916,7 +28893,6 @@ static void dump_byte_code(JSContext *ctx, int pass,
         pos_next = pos + oi->size;
         if (op < OP_COUNT) {
             switch (oi->fmt) {
-#if SHORT_OPCODES
             case OP_FMT_label8:
                 pos++;
                 addr = (int8_t)tab[pos];
@@ -28925,7 +28901,6 @@ static void dump_byte_code(JSContext *ctx, int pass,
                 pos++;
                 addr = (int16_t)get_u16(tab + pos);
                 goto has_addr;
-#endif
             case OP_FMT_atom_label_u8:
             case OP_FMT_atom_label_u16:
                 pos += 4;
@@ -29039,14 +29014,12 @@ static void dump_byte_code(JSContext *ctx, int pass,
         case OP_FMT_u32:
             printf(" %u", get_u32(tab + pos));
             break;
-#if SHORT_OPCODES
         case OP_FMT_label8:
             addr = get_i8(tab + pos);
             goto has_addr1;
         case OP_FMT_label16:
             addr = get_i16(tab + pos);
             goto has_addr1;
-#endif
         case OP_FMT_label:
             addr = get_u32(tab + pos);
             goto has_addr1;
@@ -29068,11 +29041,9 @@ static void dump_byte_code(JSContext *ctx, int pass,
                 printf(" %u", addr + pos);
             printf(",%u", get_u16(tab + pos + 4));
             break;
-#if SHORT_OPCODES
         case OP_FMT_const8:
             idx = get_u8(tab + pos);
             goto has_pool_idx;
-#endif
         case OP_FMT_const:
             idx = get_u32(tab + pos);
             goto has_pool_idx;
@@ -31264,7 +31235,6 @@ static int find_jump_target(JSFunctionDef *s, int label, int *pop, int *pline)
 
 static void push_short_int(DynBuf *bc_out, int val)
 {
-#if SHORT_OPCODES
     if (val >= -1 && val <= 7) {
         dbuf_putc(bc_out, OP_push_0 + val);
         return;
@@ -31279,14 +31249,12 @@ static void push_short_int(DynBuf *bc_out, int val)
         dbuf_put_u16(bc_out, val);
         return;
     }
-#endif
     dbuf_putc(bc_out, OP_push_i32);
     dbuf_put_u32(bc_out, val);
 }
 
 static void put_short_code(DynBuf *bc_out, int op, int idx)
 {
-#if SHORT_OPCODES
     if (idx < 4) {
         switch (op) {
         case OP_get_loc:
@@ -31337,7 +31305,6 @@ static void put_short_code(DynBuf *bc_out, int op, int idx)
             return;
         }
     }
-#endif
     dbuf_putc(bc_out, op);
     dbuf_put_u16(bc_out, idx);
 }
@@ -31352,9 +31319,7 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
     RelocEntry *re, *re_next;
     CodeContext cc;
     int label;
-#if SHORT_OPCODES
     JumpSlot *jp;
-#endif
 
     label_slots = s->label_slots;
 
@@ -31364,13 +31329,12 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
     cc.bc_len = bc_len = s->byte_code.size;
     js_dbuf_init(ctx, &bc_out);
 
-#if SHORT_OPCODES
     if (s->jump_size) {
         s->jump_slots = js_mallocz(s->ctx, sizeof(*s->jump_slots) * s->jump_size);
         if (s->jump_slots == NULL)
             return -1;
     }
-#endif
+
     /* XXX: Should skip this phase if not generating SHORT_OPCODES */
     if (s->line_number_size && !(s->js_mode & JS_MODE_STRIP)) {
         s->line_number_slots = js_mallocz(s->ctx, sizeof(*s->line_number_slots) * s->line_number_size);
@@ -31588,7 +31552,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
             }
             assert(label >= 0 && label < s->label_count);
             ls = &label_slots[label];
-#if SHORT_OPCODES
             jp = &s->jump_slots[s->jump_count++];
             jp->op = op;
             jp->size = 4;
@@ -31632,7 +31595,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
                     break;
                 }
             }
-#endif
             dbuf_putc(&bc_out, op);
             dbuf_put_u32(&bc_out, ls->addr - bc_out.size);
             if (ls->addr == -1) {
@@ -31660,13 +31622,11 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
                 assert(label >= 0 && label < s->label_count);
                 ls = &label_slots[label];
                 add_pc2line_info(s, bc_out.size, line_num);
-#if SHORT_OPCODES
                 jp = &s->jump_slots[s->jump_count++];
                 jp->op = op;
                 jp->size = 4;
                 jp->pos = bc_out.size + 5;
                 jp->label = label;
-#endif
                 dbuf_putc(&bc_out, op);
                 dbuf_put_u32(&bc_out, atom);
                 dbuf_put_u32(&bc_out, ls->addr - bc_out.size);
@@ -31690,7 +31650,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
             goto no_change;
 
         case OP_null:
-#if SHORT_OPCODES
             if (OPTIMIZE) {
                 /* transform null strict_eq into is_null */
                 if (code_match(&cc, pos_next, OP_strict_eq, -1)) {
@@ -31711,7 +31670,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
                     goto has_label;
                 }
             }
-#endif
             /* fall thru */
         case OP_push_false:
         case OP_push_true:
@@ -31773,7 +31731,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
             }
             goto no_change;
 
-#if SHORT_OPCODES
         case OP_push_const:
         case OP_fclosure:
             if (OPTIMIZE) {
@@ -31798,7 +31755,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
                 }
             }
             goto no_change;
-#endif
         case OP_push_atom_value:
             if (OPTIMIZE) {
                 JSAtom atom = get_u32(bc_buf + pos + 1);
@@ -31809,14 +31765,12 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
                     pos_next = cc.pos;
                     break;
                 }
-#if SHORT_OPCODES
                 if (atom == JS_ATOM_empty_string) {
                     JS_FreeAtom(ctx, atom);
                     add_pc2line_info(s, bc_out.size, line_num);
                     dbuf_putc(&bc_out, OP_push_empty_string);
                     break;
                 }
-#endif
             }
             goto no_change;
 
@@ -31853,7 +31807,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
                     val = 0;
                     goto has_constant_test;
                 }
-#if SHORT_OPCODES
                 /* transform undefined strict_eq -> is_undefined */
                 if (code_match(&cc, pos_next, OP_strict_eq, -1)) {
                     if (cc.line_num >= 0) line_num = cc.line_num;
@@ -31872,7 +31825,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
                     op = cc.op ^ OP_if_false ^ OP_if_true;
                     goto has_label;
                 }
-#endif
             }
             goto no_change;
 
@@ -31947,13 +31899,10 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
                 if (code_match(&cc, pos_next, OP_push_atom_value, OP_add, OP_dup, OP_put_loc, idx, OP_drop, -1)) {
                     if (cc.line_num >= 0) line_num = cc.line_num;
                     add_pc2line_info(s, bc_out.size, line_num);
-#if SHORT_OPCODES
                     if (cc.atom == JS_ATOM_empty_string) {
                         JS_FreeAtom(ctx, cc.atom);
                         dbuf_putc(&bc_out, OP_push_empty_string);
-                    } else
-#endif
-                    {
+                    } else {
                         dbuf_putc(&bc_out, OP_push_atom_value);
                         dbuf_put_u32(&bc_out, cc.atom);
                     }
@@ -31993,7 +31942,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
                 break;
             }
             goto no_change;
-#if SHORT_OPCODES
         case OP_get_arg:
         case OP_get_var_ref:
             if (OPTIMIZE) {
@@ -32004,7 +31952,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
                 break;
             }
             goto no_change;
-#endif
         case OP_put_loc:
         case OP_put_arg:
         case OP_put_var_ref:
@@ -32070,7 +32017,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
             }
             goto no_change;
 
-#if SHORT_OPCODES
         case OP_typeof:
             if (OPTIMIZE) {
                 /* simplify typeof tests */
@@ -32110,7 +32056,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
                 }
             }
             goto no_change;
-#endif
 
         default:
         no_change:
@@ -32124,7 +32069,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
     for(i = 0; i < s->label_count; i++) {
         assert(label_slots[i].first_reloc == NULL);
     }
-#if SHORT_OPCODES
     if (OPTIMIZE) {
         /* more jump optimizations */
         int patch_offsets = 0;
@@ -32202,7 +32146,6 @@ static __exception int resolve_labels(JSContext *ctx, JSFunctionDef *s)
     }
     js_free(ctx, s->jump_slots);
     s->jump_slots = NULL;
-#endif
     js_free(ctx, s->label_slots);
     s->label_slots = NULL;
     /* XXX: should delay until copying to runtime bytecode function */
@@ -32317,12 +32260,8 @@ static __exception int compute_stack_size(JSContext *ctx,
         /* call pops a variable number of arguments */
         if (oi->fmt == OP_FMT_npop || oi->fmt == OP_FMT_npop_u16) {
             n_pop += get_u16(bc_buf + pos + 1);
-        } else {
-#if SHORT_OPCODES
-            if (oi->fmt == OP_FMT_npopx) {
-                n_pop += op - OP_call0;
-            }
-#endif
+        } else if (oi->fmt == OP_FMT_npopx) {
+            n_pop += op - OP_call0;
         }
 
         if (stack_len < n_pop) {
@@ -32351,7 +32290,6 @@ static __exception int compute_stack_size(JSContext *ctx,
             diff = get_u32(bc_buf + pos + 1);
             pos_next = pos + 1 + diff;
             break;
-#if SHORT_OPCODES
         case OP_goto16:
             diff = (int16_t)get_u16(bc_buf + pos + 1);
             pos_next = pos + 1 + diff;
@@ -32366,7 +32304,6 @@ static __exception int compute_stack_size(JSContext *ctx,
             if (ss_check(ctx, s, pos + 1 + diff, op, stack_len))
                 goto fail;
             break;
-#endif
         case OP_if_true:
         case OP_if_false:
         case OP_catch:
