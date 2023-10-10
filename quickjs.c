@@ -47,6 +47,7 @@
 #ifdef CONFIG_BIGNUM
 #include "libbf.h"
 #endif
+#include "libtcc.h"
 
 #if defined(__APPLE__)
 #define MALLOC_OVERHEAD  0
@@ -589,6 +590,7 @@ typedef struct JSFunctionBytecode {
     /* XXX: 4 bits available */
     uint8_t *byte_code_buf; /* (self pointer) */
     int byte_code_len;
+    JSValue (*jitcode)(JSContext *ctx);
     JSAtom func_name;
     JSVarDef *vardefs; /* arguments + local variables (arg_count + var_count) (self pointer) */
     JSClosureVar *closure_var; /* list of variables in the closure (self pointer) */
@@ -16287,7 +16289,15 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
     sf->prev_frame = rt->current_stack_frame;
     rt->current_stack_frame = sf;
     ctx = b->realm; /* set the current realm */
-    
+
+    if (b->jitcode) {
+        ret_val = b->jitcode(ctx);
+        if (JS_IsException(ret_val))
+            goto exception;
+        // TODO handle b->func_kind != JS_FUNC_NORMAL
+        goto done;
+    }
+
  restart:
     for(;;) {
         int call_argc;
@@ -32307,6 +32317,53 @@ static int add_module_variables(JSContext *ctx, JSFunctionDef *fd)
     return 0;
 }
 
+static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
+{
+    TCCState *s;
+    DynBuf dbuf;
+
+    if (b->byte_code_len != 1)
+        return;
+
+    if (b->byte_code_buf[0] != OP_return_undef)
+        return;
+
+    js_dbuf_init(ctx, &dbuf);
+    dbuf_printf(&dbuf,
+        "typedef int int32_t;"
+        "typedef long long int64_t;"
+        "typedef union JSValueUnion {"
+        "    int32_t int32;"
+        "    double float64;"
+        "    void *ptr;"
+        "} JSValueUnion;"
+        "typedef struct JSValue {"
+        "    JSValueUnion u;"
+        "    int64_t tag;"
+        "} JSValue;"
+        "typedef struct JSContext JSContext;"
+        "JSValue jitcode(JSContext *ctx){"
+        "return (JSValue){.tag = %d};"
+        "}",
+        JS_TAG_UNDEFINED);
+
+    s = tcc_new();
+    if (-1 == tcc_set_output_type(s, TCC_OUTPUT_MEMORY))
+        goto fail;
+    if (-1 == tcc_compile_string(s, (char *)dbuf.buf))
+        goto fail;
+    if (-1 == tcc_relocate(s, TCC_RELOCATE_AUTO))
+        goto fail;
+
+    b->jitcode = tcc_get_symbol(s, "jitcode");
+    dbuf_free(&dbuf);
+    return; /* note: TCCState leak is intentional */
+
+fail:
+    dbuf_free(&dbuf);
+    tcc_delete(s);
+}
+
 /* create a function object from a function definition. The function
    definition is freed. All the child functions are also created. It
    must be done this way to resolve all the variables. */
@@ -32529,6 +32586,7 @@ static JSValue js_create_function(JSContext *ctx, JSFunctionDef *fd)
     }
 
     js_free(ctx, fd);
+    js_jit(ctx, b);
     return JS_MKPTR(JS_TAG_FUNCTION_BYTECODE, b);
  fail:
     js_free_function_def(ctx, fd);

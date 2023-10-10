@@ -53,17 +53,6 @@ typedef struct JSClass JSClass;
 typedef uint32_t JSClassID;
 typedef uint32_t JSAtom;
 
-#if INTPTR_MAX >= INT64_MAX
-#define JS_PTR64
-#define JS_PTR64_DEF(a) a
-#else
-#define JS_PTR64_DEF(a)
-#endif
-
-#ifndef JS_PTR64
-#define JS_NAN_BOXING
-#endif
-
 enum {
     /* all tags with a reference count are negative */
     JS_TAG_FIRST       = -11, /* first negative tag */
@@ -84,7 +73,6 @@ enum {
     JS_TAG_CATCH_OFFSET = 5,
     JS_TAG_EXCEPTION   = 6,
     JS_TAG_FLOAT64     = 7,
-    /* any larger tag is FLOAT64 if JS_NAN_BOXING */
 };
 
 typedef struct JSRefCountHeader {
@@ -92,107 +80,6 @@ typedef struct JSRefCountHeader {
 } JSRefCountHeader;
 
 #define JS_FLOAT64_NAN NAN
-
-#ifdef CONFIG_CHECK_JSVALUE
-/* JSValue consistency : it is not possible to run the code in this
-   mode, but it is useful to detect simple reference counting
-   errors. It would be interesting to modify a static C analyzer to
-   handle specific annotations (clang has such annotations but only
-   for objective C) */
-typedef struct __JSValue *JSValue;
-typedef const struct __JSValue *JSValueConst;
-
-#define JS_VALUE_GET_TAG(v) (int)((uintptr_t)(v) & 0xf)
-/* same as JS_VALUE_GET_TAG, but return JS_TAG_FLOAT64 with NaN boxing */
-#define JS_VALUE_GET_NORM_TAG(v) JS_VALUE_GET_TAG(v)
-#define JS_VALUE_GET_INT(v) (int)((intptr_t)(v) >> 4)
-#define JS_VALUE_GET_BOOL(v) JS_VALUE_GET_INT(v)
-#define JS_VALUE_GET_FLOAT64(v) (double)JS_VALUE_GET_INT(v)
-#define JS_VALUE_GET_PTR(v) (void *)((intptr_t)(v) & ~0xf)
-
-#define JS_MKVAL(tag, val) (JSValue)(intptr_t)(((val) << 4) | (tag))
-#define JS_MKPTR(tag, p) (JSValue)((intptr_t)(p) | (tag))
-
-#define JS_TAG_IS_FLOAT64(tag) ((unsigned)(tag) == JS_TAG_FLOAT64)
-
-#define JS_NAN JS_MKVAL(JS_TAG_FLOAT64, 1)
-
-static inline JSValue __JS_NewFloat64(JSContext *ctx, double d)
-{
-    return JS_MKVAL(JS_TAG_FLOAT64, (int)d);
-}
-
-static inline JS_BOOL JS_VALUE_IS_NAN(JSValue v)
-{
-    return 0;
-}
-    
-#elif defined(JS_NAN_BOXING)
-
-typedef uint64_t JSValue;
-
-#define JSValueConst JSValue
-
-#define JS_VALUE_GET_TAG(v) (int)((v) >> 32)
-#define JS_VALUE_GET_INT(v) (int)(v)
-#define JS_VALUE_GET_BOOL(v) (int)(v)
-#define JS_VALUE_GET_PTR(v) (void *)(intptr_t)(v)
-
-#define JS_MKVAL(tag, val) (((uint64_t)(tag) << 32) | (uint32_t)(val))
-#define JS_MKPTR(tag, ptr) (((uint64_t)(tag) << 32) | (uintptr_t)(ptr))
-
-#define JS_FLOAT64_TAG_ADDEND (0x7ff80000 - JS_TAG_FIRST + 1) /* quiet NaN encoding */
-
-static inline double JS_VALUE_GET_FLOAT64(JSValue v)
-{
-    union {
-        JSValue v;
-        double d;
-    } u;
-    u.v = v;
-    u.v += (uint64_t)JS_FLOAT64_TAG_ADDEND << 32;
-    return u.d;
-}
-
-#define JS_NAN (0x7ff8000000000000 - ((uint64_t)JS_FLOAT64_TAG_ADDEND << 32))
-
-static inline JSValue __JS_NewFloat64(JSContext *ctx, double d)
-{
-    union {
-        double d;
-        uint64_t u64;
-    } u;
-    JSValue v;
-    u.d = d;
-    /* normalize NaN */
-    if (js_unlikely((u.u64 & 0x7fffffffffffffff) > 0x7ff0000000000000))
-        v = JS_NAN;
-    else
-        v = u.u64 - ((uint64_t)JS_FLOAT64_TAG_ADDEND << 32);
-    return v;
-}
-
-#define JS_TAG_IS_FLOAT64(tag) ((unsigned)((tag) - JS_TAG_FIRST) >= (JS_TAG_FLOAT64 - JS_TAG_FIRST))
-
-/* same as JS_VALUE_GET_TAG, but return JS_TAG_FLOAT64 with NaN boxing */
-static inline int JS_VALUE_GET_NORM_TAG(JSValue v)
-{
-    uint32_t tag;
-    tag = JS_VALUE_GET_TAG(v);
-    if (JS_TAG_IS_FLOAT64(tag))
-        return JS_TAG_FLOAT64;
-    else
-        return tag;
-}
-
-static inline JS_BOOL JS_VALUE_IS_NAN(JSValue v)
-{
-    uint32_t tag;
-    tag = JS_VALUE_GET_TAG(v);
-    return tag == (JS_NAN >> 32);
-}
-    
-#else /* !JS_NAN_BOXING */
 
 typedef union JSValueUnion {
     int32_t int32;
@@ -241,8 +128,6 @@ static inline JS_BOOL JS_VALUE_IS_NAN(JSValue v)
     u.d = v.u.float64;
     return (u.u64 & 0x7fffffffffffffff) > 0x7ff0000000000000;
 }
-
-#endif /* !JS_NAN_BOXING */
 
 #define JS_VALUE_IS_BOTH_INT(v1, v2) ((JS_VALUE_GET_TAG(v1) | JS_VALUE_GET_TAG(v2)) == 0)
 #define JS_VALUE_IS_BOTH_FLOAT(v1, v2) (JS_TAG_IS_FLOAT64(JS_VALUE_GET_TAG(v1)) && JS_TAG_IS_FLOAT64(JS_VALUE_GET_TAG(v2)))
