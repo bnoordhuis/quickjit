@@ -48,12 +48,6 @@
 #include "libbf.h"
 #endif
 
-#if defined(EMSCRIPTEN)
-#define DIRECT_DISPATCH  0
-#else
-#define DIRECT_DISPATCH  1
-#endif
-
 #if defined(__APPLE__)
 #define MALLOC_OVERHEAD  0
 #else
@@ -16208,12 +16202,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
     JSVarRef **var_refs;
     size_t alloca_size;
 
-#if !DIRECT_DISPATCH
-#define SWITCH(pc)      switch (opcode = *pc++)
-#define CASE(op)        case op
-#define DEFAULT         default
-#define BREAK           break
-#else
     static const void * const dispatch_table[256] = {
 #define DEF(id, size, n_pop, n_push, f) && case_OP_ ## id,
 #define def(id, size, n_pop, n_push, f)
@@ -16224,7 +16212,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
 #define CASE(op)        case_ ## op
 #define DEFAULT         case_default
 #define BREAK           SWITCH(pc)
-#endif
 
     if (js_poll_interrupts(caller_ctx))
         return JS_EXCEPTION;
