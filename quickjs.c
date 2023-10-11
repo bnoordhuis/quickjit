@@ -590,7 +590,10 @@ typedef struct JSFunctionBytecode {
     /* XXX: 4 bits available */
     uint8_t *byte_code_buf; /* (self pointer) */
     int byte_code_len;
-    JSValue (*jitcode)(JSContext *ctx);
+    JSValue *(*jitcode)(JSContext *ctx,
+                        JSValue *sp,
+                        JSValue *var_buf,
+                        JSValue *rv);
     JSAtom func_name;
     JSVarDef *vardefs; /* arguments + local variables (arg_count + var_count) (self pointer) */
     JSClosureVar *closure_var; /* list of variables in the closure (self pointer) */
@@ -16291,7 +16294,7 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
     ctx = b->realm; /* set the current realm */
 
     if (b->jitcode) {
-        ret_val = b->jitcode(ctx);
+        sp = b->jitcode(ctx, sp, var_buf, &ret_val);
         if (JS_IsException(ret_val))
             goto exception;
         // TODO handle b->func_kind != JS_FUNC_NORMAL
@@ -32317,43 +32320,172 @@ static int add_module_variables(JSContext *ctx, JSFunctionDef *fd)
     return 0;
 }
 
+static const char prolog[] =
+    "#define js_force_inline       inline __attribute__((always_inline))\n"
+    "#define JS_VALUE_GET_TAG(v) ((int32_t)(v).tag)\n"
+    "#define JS_VALUE_GET_INT(v) ((v).u.int32)\n"
+    "#define JS_VALUE_GET_BOOL(v) ((v).u.int32)\n"
+    "#define JS_VALUE_GET_PTR(v) ((v).u.ptr)\n"
+    "#define JS_MKVAL(tag, val) (JSValue){ (JSValueUnion){ .int32 = val }, tag }\n"
+    "#define JS_NULL      JS_MKVAL(JS_TAG_NULL, 0)\n"
+    "#define JS_UNDEFINED JS_MKVAL(JS_TAG_UNDEFINED, 0)\n"
+    "#define JS_FALSE     JS_MKVAL(JS_TAG_BOOL, 0)\n"
+    "#define JS_TRUE      JS_MKVAL(JS_TAG_BOOL, 1)\n"
+    "#define JS_EXCEPTION JS_MKVAL(JS_TAG_EXCEPTION, 0)\n"
+    "#define JS_UNINITIALIZED JS_MKVAL(JS_TAG_UNINITIALIZED, 0)\n"
+    "#define JSValueConst JSValue\n"
+    "typedef int int32_t;"
+    "typedef long long int64_t;"
+    "enum {"
+    "    JS_TAG_INT         = 0,"
+    "    JS_TAG_BOOL        = 1,"
+    "    JS_TAG_NULL        = 2,"
+    "    JS_TAG_UNDEFINED   = 3,"
+    "    JS_TAG_UNINITIALIZED = 4,"
+    "};"
+    "typedef union JSValueUnion {"
+    "    int32_t int32;"
+    "    double float64;"
+    "    void *ptr;"
+    "} JSValueUnion;"
+    "typedef struct JSValue {"
+    "    JSValueUnion u;"
+    "    int64_t tag;"
+    "} JSValue;"
+    "typedef struct JSContext JSContext;"
+    "void (*JS_DupValue)(JSContext *ctx, JSValue v);"
+    "void (*JS_FreeValue)(JSContext *ctx, JSValue v);"
+    "void (*set_value)(JSContext *ctx, JSValue *pval, JSValue new_val);"
+    "int (*js_relational_slow)(JSContext *ctx, JSValue *sp, int op);"
+    "static js_force_inline JSValue JS_NewInt32(JSContext *ctx, int32_t val)"
+    "{"
+    "    return JS_MKVAL(JS_TAG_INT, val);"
+    "}"
+    "JSValue *jitcode(JSContext *ctx, JSValue *sp, JSValue *var_buf, JSValue *rv)"
+    "{"
+    "    JSValue ret_val;"
+    ;
+
+static const char epilog[] =
+    "done:"
+    "    *rv = ret_val;"
+    "    return sp;"
+    "}";
+
 static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
 {
+    const uint8_t *pc;
+    uint8_t op;
     TCCState *s;
     DynBuf dbuf;
-
-    if (b->byte_code_len != 1)
-        return;
-
-    if (b->byte_code_buf[0] != OP_return_undef)
-        return;
+    void **p;
+    int idx;
 
     js_dbuf_init(ctx, &dbuf);
-    dbuf_printf(&dbuf,
-        "typedef int int32_t;"
-        "typedef long long int64_t;"
-        "typedef union JSValueUnion {"
-        "    int32_t int32;"
-        "    double float64;"
-        "    void *ptr;"
-        "} JSValueUnion;"
-        "typedef struct JSValue {"
-        "    JSValueUnion u;"
-        "    int64_t tag;"
-        "} JSValue;"
-        "typedef struct JSContext JSContext;"
-        "JSValue jitcode(JSContext *ctx){"
-        "return (JSValue){.tag = %d};"
-        "}",
-        JS_TAG_UNDEFINED);
+    dbuf_putstr(&dbuf, prolog);
+
+    pc = b->byte_code_buf;
+    while (pc < &b->byte_code_buf[b->byte_code_len]) {
+        op = *pc;
+        switch (op) {
+        default:
+            printf("jit: bailing out, op=%02x pos=%zu\n", op, pc-b->byte_code_buf);
+            dbuf_free(&dbuf);
+            return;
+        case 0x28: // return:none 1 +0,-1
+            dbuf_putstr(&dbuf, "ret_val = *--sp;");
+            dbuf_putstr(&dbuf, "goto done;");
+            pc++;
+            break;
+        case 0x29: // return_undef:none 1 +0,-0
+            dbuf_putstr(&dbuf, "ret_val = JS_UNDEFINED;");
+            dbuf_putstr(&dbuf, "goto done;");
+            pc++;
+            break;
+        case 0x61: // set_loc_uninitialized:loc 3 +0,-0
+            idx = get_u16(pc+1);
+            dbuf_printf(&dbuf, "set_value(ctx, &var_buf[%d], JS_UNINITIALIZED);", idx);
+            pc += 3;
+            break;
+        case 0xA3: // lt:none 1 +1,-2
+        case 0xA4: // lte:none 1 +1,-2
+        case 0xA5: // gt:none 1 +1,-2
+        case 0xA6: // gte:none 1 +1,-2
+            static const char binops[][3] = {"<","<=",">",">="};
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue op1, op2;"
+                "op1 = sp[-2];"
+                "op2 = sp[-1];"
+                "if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                "    sp[-2] = JS_NewBool(ctx, JS_VALUE_GET_INT(op1) %s JS_VALUE_GET_INT(op2));"
+                "    sp--;"
+                "} else {"
+                "    if (js_relational_slow(ctx, sp, %d)) {"
+                //"        sf->cur_pc = b->byte_code_buf + ${pc};" //TODO needed for proper stack traces
+                "        goto exception;"
+                "    }"
+                "    sp--;"
+                "}"
+                "}",
+                binops[op-0xA3], op);
+            pc++;
+            break;
+        case 0xB3: // push_0:none_int 1 +1,-0
+        case 0xB4: // push_1:none_int 1 +1,-0
+        case 0xB5: // push_2:none_int 1 +1,-0
+        case 0xB6: // push_3:none_int 1 +1,-0
+        case 0xB7: // push_4:none_int 1 +1,-0
+        case 0xB8: // push_5:none_int 1 +1,-0
+        case 0xB9: // push_6:none_int 1 +1,-0
+        case 0xBA: // push_7:none_int 1 +1,-0
+            dbuf_printf(&dbuf, "*sp++ = JS_NewInt32(ctx, %d);", op-0xB3);
+            pc++;
+            break;
+        case 0xBB: // push_i8:i8 2 +1,-0
+            dbuf_printf(&dbuf, "*sp++ = JS_NewInt32(ctx, %d);", get_i8(pc+1));
+            pc += 2;
+            break;
+        case 0xC7: // put_loc0:none_loc 1 +0,-1
+        case 0xC8: // put_loc1:none_loc 1 +0,-1
+        case 0xC9: // put_loc2:none_loc 1 +0,-1
+        case 0xCA: // put_loc3:none_loc 1 +0,-1
+            dbuf_printf(&dbuf, "set_value(ctx, &var_buf[%d], *--sp);", op-0xC7);
+            pc++;
+            break;
+        case 0xCF: // get_arg0:none_arg 1 +1,-0
+        case 0xD0: // get_arg1:none_arg 1 +1,-0
+        case 0xD1: // get_arg2:none_arg 1 +1,-0
+        case 0xD2: // get_arg3:none_arg 1 +1,-0
+            dbuf_printf(&dbuf, "*sp++ = JS_DupValue(ctx, arg_buf[%d]);", op-0xCF);
+            pc++;
+            break;
+        }
+    }
+
+    dbuf_putstr(&dbuf, epilog);
 
     s = tcc_new();
+    if (-1 == tcc_set_options(s, "-vvv -Wall -Wunsupported -nostdinc"))
+        goto fail;
     if (-1 == tcc_set_output_type(s, TCC_OUTPUT_MEMORY))
         goto fail;
     if (-1 == tcc_compile_string(s, (char *)dbuf.buf))
         goto fail;
     if (-1 == tcc_relocate(s, TCC_RELOCATE_AUTO))
         goto fail;
+
+#define link_symbol(name) \
+    do { \
+        p = tcc_get_symbol(s, #name); \
+        assert(p); \
+        *p = (void *) &name; \
+    } while (0)
+    link_symbol(JS_DupValue);
+    link_symbol(JS_FreeValue);
+    link_symbol(js_relational_slow);
+    link_symbol(set_value);
+#undef link_symbol
 
     b->jitcode = tcc_get_symbol(s, "jitcode");
     dbuf_free(&dbuf);
