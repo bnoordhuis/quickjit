@@ -32321,11 +32321,16 @@ static int add_module_variables(JSContext *ctx, JSFunctionDef *fd)
 }
 
 static const char prolog[] =
-    "#define js_force_inline       inline __attribute__((always_inline))\n"
+    "#define JS_BOOL int\n"
+    "#define likely(x)           (x)\n"
+    "#define unlikely(x)         (x)\n"
+    "#define js_unlikely(x)      (x)\n"
+    "#define js_force_inline     inline __attribute__((always_inline))\n"
     "#define JS_VALUE_GET_TAG(v) ((int32_t)(v).tag)\n"
     "#define JS_VALUE_GET_INT(v) ((v).u.int32)\n"
     "#define JS_VALUE_GET_BOOL(v) ((v).u.int32)\n"
     "#define JS_VALUE_GET_PTR(v) ((v).u.ptr)\n"
+    "#define JS_VALUE_GET_FLOAT64(v) ((v).u.float64)\n"
     "#define JS_MKVAL(tag, val) (JSValue){ (JSValueUnion){ .int32 = val }, tag }\n"
     "#define JS_NULL      JS_MKVAL(JS_TAG_NULL, 0)\n"
     "#define JS_UNDEFINED JS_MKVAL(JS_TAG_UNDEFINED, 0)\n"
@@ -32333,6 +32338,9 @@ static const char prolog[] =
     "#define JS_TRUE      JS_MKVAL(JS_TAG_BOOL, 1)\n"
     "#define JS_EXCEPTION JS_MKVAL(JS_TAG_EXCEPTION, 0)\n"
     "#define JS_UNINITIALIZED JS_MKVAL(JS_TAG_UNINITIALIZED, 0)\n"
+    "##define JS_TAG_IS_FLOAT64(tag) ((unsigned)(tag) == JS_TAG_FLOAT64)\n"
+    "#define JS_VALUE_IS_BOTH_INT(v1, v2) ((JS_VALUE_GET_TAG(v1) | JS_VALUE_GET_TAG(v2)) == 0)\n"
+    "#define JS_VALUE_IS_BOTH_FLOAT(v1, v2) (JS_TAG_IS_FLOAT64(JS_VALUE_GET_TAG(v1)) && JS_TAG_IS_FLOAT64(JS_VALUE_GET_TAG(v2)))\n"
     "#define JSValueConst JSValue\n"
     "typedef int int32_t;"
     "typedef long long int64_t;"
@@ -32342,6 +32350,9 @@ static const char prolog[] =
     "    JS_TAG_NULL        = 2,"
     "    JS_TAG_UNDEFINED   = 3,"
     "    JS_TAG_UNINITIALIZED = 4,"
+    "    JS_TAG_CATCH_OFFSET = 5,"
+    "    JS_TAG_EXCEPTION   = 6,"
+    "    JS_TAG_FLOAT64     = 7,"
     "};"
     "typedef union JSValueUnion {"
     "    int32_t int32;"
@@ -32353,13 +32364,31 @@ static const char prolog[] =
     "    int64_t tag;"
     "} JSValue;"
     "typedef struct JSContext JSContext;"
+    "typedef struct JSFunctionBytecode JSFunctionBytecode;"
     "void (*JS_DupValue)(JSContext *ctx, JSValue v);"
     "void (*JS_FreeValue)(JSContext *ctx, JSValue v);"
-    "void (*set_value)(JSContext *ctx, JSValue *pval, JSValue new_val);"
+    "int (*JS_ToBoolFree)(JSContext *ctx, JSValue val);"
+    "JSValue (*JS_ThrowReferenceErrorUninitialized2)(JSContext *ctx,"
+                                                    "JSFunctionBytecode *b,"
+                                                    "int idx, BOOL is_ref);"
+    "int (*js_add_slow)(JSContext *ctx, JSValue *sp);"
+    "int (*js_poll_interrupts)(JSContext *ctx);"
     "int (*js_relational_slow)(JSContext *ctx, JSValue *sp, int op);"
+    "void (*set_value)(JSContext *ctx, JSValue *pval, JSValue new_val);"
+    "static inline JSValue __JS_NewFloat64(JSContext *ctx, double d)"
+    "{"
+    "    JSValue v;"
+    "    v.tag = JS_TAG_FLOAT64;"
+    "    v.u.float64 = d;"
+    "    return v;"
+    "}"
     "static js_force_inline JSValue JS_NewInt32(JSContext *ctx, int32_t val)"
     "{"
     "    return JS_MKVAL(JS_TAG_INT, val);"
+    "}"
+    "static inline JS_BOOL JS_IsUninitialized(JSValueConst v)"
+    "{"
+    "    return js_unlikely(JS_VALUE_GET_TAG(v) == JS_TAG_UNINITIALIZED);"
     "}"
     "JSValue *jitcode(JSContext *ctx, JSValue *sp, JSValue *var_buf, JSValue *rv)"
     "{"
@@ -32379,19 +32408,35 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     TCCState *s;
     DynBuf dbuf;
     void **p;
+    int gensym;
     int idx;
 
+    gensym = 0;
     js_dbuf_init(ctx, &dbuf);
     dbuf_putstr(&dbuf, prolog);
 
     pc = b->byte_code_buf;
     while (pc < &b->byte_code_buf[b->byte_code_len]) {
+        idx = pc-b->byte_code_buf;
+        dbuf_printf(&dbuf, "pc%d:", idx);
         op = *pc;
         switch (op) {
         default:
-            printf("jit: bailing out, op=%02x pos=%zu\n", op, pc-b->byte_code_buf);
+            printf("jit: bailing out, op=%02x idx=%d\n", op, idx);
             dbuf_free(&dbuf);
             return;
+        case 0x0E: // drop:none 1 +0,-1
+            dbuf_putstr(&dbuf,
+                "JS_FreeValue(ctx, sp[-1]);"
+                "sp--;");
+            pc++;
+            break;
+        case 0x11: // dup:none 1 +2,-1
+            dbuf_putstr(&dbuf,
+                "sp[0] = JS_DupValue(ctx, sp[-1]);"
+                "sp++;");
+            pc++;
+            break;
         case 0x28: // return:none 1 +0,-1
             dbuf_putstr(&dbuf, "ret_val = *--sp;");
             dbuf_putstr(&dbuf, "goto done;");
@@ -32406,6 +32451,93 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             idx = get_u16(pc+1);
             dbuf_printf(&dbuf, "set_value(ctx, &var_buf[%d], JS_UNINITIALIZED);", idx);
             pc += 3;
+            break;
+        case 0x62: // get_loc_check:loc 3 +1,-0
+            idx = get_u16(pc+1);
+            dbuf_printf(&dbuf,
+                "if (unlikely(JS_IsUninitialized(var_buf[%d]))) {"
+                "    JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, FALSE);"
+                //"    sf->cur_pc = b->byte_code_buf + ${pc};" //TODO needed for proper stack traces
+                "    goto exception;"
+                "}"
+                "sp[0] = JS_DupValue(ctx, var_buf[%d]);"
+                "sp++;",
+                idx, idx, idx);
+            pc += 3;
+            break;
+        case 0x63: // put_loc_check:loc 3 +0,-1
+            idx = get_u16(pc+1);
+            dbuf_printf(&dbuf,
+                "if (unlikely(JS_IsUninitialized(var_buf[%d]))) {"
+                "    JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, FALSE);"
+                //"    sf->cur_pc = b->byte_code_buf + ${pc};" //TODO needed for proper stack traces
+                "    goto exception;"
+                "}"
+                "set_value(ctx, &var_buf[%d], sp[-1]);"
+                "sp--;",
+                idx, idx, idx);
+            pc += 3;
+            break;
+        case 0x9D: // add:none 1 +1,-2
+            idx = gensym++;
+            dbuf_printf(&dbuf,
+                "{"
+                "    JSValue op1, op2;"
+                "    op1 = sp[-2];"
+                "    op2 = sp[-1];"
+                "    if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                "        int64_t r;"
+                "        r = (int64_t)JS_VALUE_GET_INT(op1) + JS_VALUE_GET_INT(op2);"
+                "        if (unlikely((int)r != r))"
+                "            goto add_slow%d;"
+                "        sp[-2] = JS_NewInt32(ctx, r);"
+                "        sp--;"
+                "    } else if (JS_VALUE_IS_BOTH_FLOAT(op1, op2)) {"
+                "        sp[-2] = __JS_NewFloat64(ctx, JS_VALUE_GET_FLOAT64(op1) +"
+                "                                 JS_VALUE_GET_FLOAT64(op2));"
+                "        sp--;"
+                "    } else {"
+                "    add_slow%d:"
+                "        if (js_add_slow(ctx, sp)) {"
+                //"            sf->cur_pc = b->byte_code_buf + ${pc};" // FIXME
+                "            goto exception;"
+                "        }"
+                "        sp--;"
+                "    }"
+                "}", idx, idx);
+            pc++;
+            break;
+        case 0x9E: // sub:none 1 +1,-2
+            idx = gensym++;
+            dbuf_printf(&dbuf,
+                "{"
+                "    JSValue op1, op2;"
+                "    op1 = sp[-2];"
+                "    op2 = sp[-1];"
+                "    if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                "        int64_t r;"
+                "        r = (int64_t)JS_VALUE_GET_INT(op1) - JS_VALUE_GET_INT(op2);"
+                "        if (unlikely((int)r != r))"
+                "            goto binary_arith_slow%d;"
+                "        sp[-2] = JS_NewInt32(ctx, r);"
+                "        sp--;"
+                "    } else if (JS_VALUE_IS_BOTH_FLOAT(op1, op2)) {"
+                "        sp[-2] = __JS_NewFloat64(ctx, JS_VALUE_GET_FLOAT64(op1) -"
+                "                                 JS_VALUE_GET_FLOAT64(op2));"
+                "        sp--;"
+                "    } else {"
+                "        goto binary_arith_slow%d;"
+                "    }"
+                "}"
+                "if (0) {" // HACK
+                "binary_arith_slow%d:"
+                "    if (js_binary_arith_slow(ctx, sp, ${op})) {"
+                //"        sf->cur_pc = b->byte_code_buf + ${pc};" // TODO
+                "        goto exception;"
+                "    }"
+                "    sp--;"
+                "}", idx, idx, idx);
+            pc++;
             break;
         case 0xA3: // lt:none 1 +1,-2
         case 0xA4: // lte:none 1 +1,-2
@@ -32460,6 +32592,44 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_printf(&dbuf, "*sp++ = JS_DupValue(ctx, arg_buf[%d]);", op-0xCF);
             pc++;
             break;
+        case 0xD3: // put_arg0:none_arg 1 +0,-1
+        case 0xD4: // put_arg1:none_arg 1 +0,-1
+        case 0xD5: // put_arg2:none_arg 1 +0,-1
+        case 0xD6: // put_arg3:none_arg 1 +0,-1
+            dbuf_printf(&dbuf, "set_value(ctx, &arg_buf[%d], *--sp);", op-0xD3);
+            pc++;
+            break;
+        case 0xD7: // set_arg0:none_arg 1 +1,-1
+        case 0xD8: // set_arg1:none_arg 1 +1,-1
+        case 0xD9: // set_arg2:none_arg 1 +1,-1
+        case 0xDA: // set_arg3:none_arg 1 +1,-1
+            dbuf_printf(&dbuf, "set_value(ctx, &arg_buf[%d], JS_DupValue(ctx, sp[-1]));", op-0xD7);
+            pc++;
+            break;
+        case 0xE8: // if_false8:label8 2 +0,-1
+            idx = idx + 1 + (int8_t)pc[1];
+            dbuf_printf(&dbuf,
+                "{"
+                "    int res;"
+                "    JSValue op1;"
+                "    op1 = sp[-1];"
+                "    if ((uint32_t)JS_VALUE_GET_TAG(op1) <= JS_TAG_UNDEFINED) {"
+                "        res = JS_VALUE_GET_INT(op1);"
+                "    } else {"
+                "        res = JS_ToBoolFree(ctx, op1);"
+                "    }"
+                "    sp--;"
+                "    if (unlikely(js_poll_interrupts(ctx))) {"
+                //"        sf->cur_pc = b->byte_code_buf + ${pc};" //TODO needed for proper stack traces
+                "        goto exception;"
+                "    }"
+                "    if (!res) {"
+                "        goto pc%d;"
+                "    }"
+                "}",
+                idx);
+            pc += 2;
+            break;
         }
     }
 
@@ -32483,6 +32653,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     } while (0)
     link_symbol(JS_DupValue);
     link_symbol(JS_FreeValue);
+    link_symbol(JS_IsUninitialized);
+    link_symbol(JS_ThrowReferenceErrorUninitialized2);
+    link_symbol(JS_ToBoolFree);
+    link_symbol(js_add_slow);
+    link_symbol(js_poll_interrupts);
     link_symbol(js_relational_slow);
     link_symbol(set_value);
 #undef link_symbol
