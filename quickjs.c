@@ -32346,6 +32346,7 @@ static const char prolog[] =
     "#define JS_TAG_IS_FLOAT64(tag) ((unsigned)(tag) == JS_TAG_FLOAT64)\n"
     "#define JS_VALUE_IS_BOTH_INT(v1, v2) ((JS_VALUE_GET_TAG(v1) | JS_VALUE_GET_TAG(v2)) == 0)\n"
     "#define JS_VALUE_IS_BOTH_FLOAT(v1, v2) (JS_TAG_IS_FLOAT64(JS_VALUE_GET_TAG(v1)) && JS_TAG_IS_FLOAT64(JS_VALUE_GET_TAG(v2)))\n"
+    "#define JS_VALUE_HAS_REF_COUNT(v) ((unsigned)JS_VALUE_GET_TAG(v) >= (unsigned)JS_TAG_FIRST)\n"
     "#define JSValueConst JSValue\n"
     "typedef int int32_t;"
     "typedef long long int64_t;"
@@ -32356,6 +32357,7 @@ static const char prolog[] =
     "    TRUE = 1,"
     "};"
     "enum {"
+    "    JS_TAG_FIRST       = -11,"
     "    JS_TAG_INT         = 0,"
     "    JS_TAG_BOOL        = 1,"
     "    JS_TAG_NULL        = 2,"
@@ -32374,15 +32376,18 @@ static const char prolog[] =
     "    JSValueUnion u;"
     "    int64_t tag;"
     "} JSValue;"
+    "typedef struct JSRefCountHeader {"
+    "    int ref_count;"
+    "} JSRefCountHeader;"
     "typedef struct JSContext JSContext;"
     "typedef struct JSFunctionBytecode JSFunctionBytecode;"
     "typedef struct JSStackFrame JSStackFrame;"
     "typedef struct JSVarRef JSVarRef;"
+    "void (*__JS_FreeValue)(JSContext *ctx, JSValue v);"
     "JSValue (*JS_CallInternal)(JSContext *caller_ctx, JSValueConst func_obj, JSValueConst this_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
     "int (*JS_CheckDefineGlobalVar)(JSContext *ctx, JSAtom prop, int flags);"
     "int (*JS_DefineGlobalFunction)(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
     "JSValue (*JS_DupValue)(JSContext *ctx, JSValue v);"
-    "void (*JS_FreeValue)(JSContext *ctx, JSValue v);"
     "JSValue (*JS_GetGlobalVar)(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "int (*JS_ToBoolFree)(JSContext *ctx, JSValue val);"
     "JSValue (*JS_ThrowReferenceErrorUninitialized2)(JSContext *ctx,"
@@ -32394,6 +32399,15 @@ static const char prolog[] =
     "int (*js_poll_interrupts)(JSContext *ctx);"
     "int (*js_relational_slow)(JSContext *ctx, JSValue *sp, int op);"
     "void (*set_value)(JSContext *ctx, JSValue *pval, JSValue new_val);"
+    "static inline void JS_FreeValue(JSContext *ctx, JSValue v)"
+    "{"
+    "    if (JS_VALUE_HAS_REF_COUNT(v)) {"
+    "        JSRefCountHeader *p = (JSRefCountHeader *)JS_VALUE_GET_PTR(v);"
+    "        if (--p->ref_count <= 0) {"
+    "            __JS_FreeValue(ctx, v);"
+    "        }"
+    "    }"
+    "}"
     "static inline JS_BOOL JS_IsException(JSValueConst v)"
     "{"
     "    return js_unlikely(JS_VALUE_GET_TAG(v) == JS_TAG_EXCEPTION);"
@@ -32790,11 +32804,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         assert(p); \
         *p = (void *) &name; \
     } while (0)
+    link_symbol(__JS_FreeValue);
     link_symbol(JS_CallInternal);
     link_symbol(JS_CheckDefineGlobalVar);
     link_symbol(JS_DefineGlobalFunction);
     link_symbol(JS_DupValue);
-    link_symbol(JS_FreeValue);
     link_symbol(JS_GetGlobalVar);
     link_symbol(JS_ThrowReferenceErrorUninitialized2);
     link_symbol(JS_ToBoolFree);
