@@ -32887,6 +32887,17 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}");
             pc++;
             break;
+        case 0xF2: // typeof_is_undefined:none 1 +1,-1
+            dbuf_putstr(&dbuf,
+                "if (js_operator_typeof(ctx, sp[-1]) == JS_ATOM_undefined) {"
+                "    JS_FreeValue(ctx, sp[-1]);"
+                "    sp[-1] = JS_TRUE;"
+                "} else {"
+                "    JS_FreeValue(ctx, sp[-1]);"
+                "    sp[-1] = JS_FALSE;"
+                "}");
+            pc++;
+            break;
         }
     }
 
