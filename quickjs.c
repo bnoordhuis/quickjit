@@ -32656,6 +32656,9 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 binops[op-0xA3], op);
             pc++;
             break;
+        case 0xB1: // nop:none 1 +0,-0
+            pc++;
+            break;
         case 0xB2: // push_minus1:none_int 1 +1,-0
         case 0xB3: // push_0:none_int 1 +1,-0
         case 0xB4: // push_1:none_int 1 +1,-0
