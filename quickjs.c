@@ -32444,6 +32444,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             printf("jit: bailing out, op=%02x idx=%d\n", op, idx);
             dbuf_free(&dbuf);
             return;
+        case 0x01: // push_i32:i32 5 +1,-0
+            idx = get_u32(pc);
+            dbuf_printf(&dbuf, "*sp++ = JS_NewInt32(ctx, %d);", idx);
+            pc += 4;
+            break;
         case 0x0E: // drop:none 1 +0,-1
             dbuf_putstr(&dbuf,
                 "JS_FreeValue(ctx, sp[-1]);"
