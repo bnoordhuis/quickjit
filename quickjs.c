@@ -32348,6 +32348,7 @@ static const char prolog[] =
     "typedef int int32_t;"
     "typedef long long int64_t;"
     "typedef unsigned int uint32_t;"
+    "typedef uint32_t JSAtom;"
     "enum {"
     "    FALSE = 0,"
     "    TRUE = 1,"
@@ -32373,6 +32374,7 @@ static const char prolog[] =
     "} JSValue;"
     "typedef struct JSContext JSContext;"
     "typedef struct JSFunctionBytecode JSFunctionBytecode;"
+    "int (*JS_CheckDefineGlobalVar)(JSContext *ctx, JSAtom prop, int flags);"
     "JSValue (*JS_DupValue)(JSContext *ctx, JSValue v);"
     "void (*JS_FreeValue)(JSContext *ctx, JSValue v);"
     "int (*JS_ToBoolFree)(JSContext *ctx, JSValue val);"
@@ -32462,6 +32464,19 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_putstr(&dbuf, "ret_val = JS_UNDEFINED;");
             dbuf_putstr(&dbuf, "goto done;");
             pc++;
+            break;
+        case 0x3F: // check_define_var:atom_u8 6 +0,-0
+            {
+                JSAtom atom;
+                int flags;
+                atom = get_u32(pc);
+                flags = pc[4];
+                dbuf_printf(&dbuf,
+                    "if (JS_CheckDefineGlobalVar(ctx, %d, %d))"
+                    "    goto exception;",
+                    atom, flags);
+            }
+            pc += 5;
             break;
         case 0x61: // set_loc_uninitialized:loc 3 +0,-0
             idx = get_u16(pc+1);
@@ -32672,6 +32687,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         assert(p); \
         *p = (void *) &name; \
     } while (0)
+    link_symbol(JS_CheckDefineGlobalVar);
     link_symbol(JS_DupValue);
     link_symbol(JS_FreeValue);
     link_symbol(JS_ThrowReferenceErrorUninitialized2);
