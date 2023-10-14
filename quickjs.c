@@ -32793,6 +32793,16 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}");
             pc++;
             break;
+        case 0xF1: // is_null:none 1 +1,-1
+            dbuf_putstr(&dbuf,
+                "if (JS_VALUE_GET_TAG(sp[-1]) == JS_TAG_NULL) {"
+                "    sp[-1] = JS_TRUE;"
+                "} else {"
+                "    JS_FreeValue(ctx, sp[-1]);"
+                "    sp[-1] = JS_FALSE;"
+                "}");
+            pc++;
+            break;
         }
     }
 
