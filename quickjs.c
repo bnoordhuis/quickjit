@@ -32384,6 +32384,7 @@ static const char prolog[] =
     "typedef struct JSStackFrame JSStackFrame;"
     "typedef struct JSVarRef JSVarRef;"
     "void (*__JS_FreeValue)(JSContext *ctx, JSValue v);"
+    "JSValue (*JS_AtomToString)(JSContext *ctx, JSAtom atom);"
     "JSValue (*JS_CallInternal)(JSContext *caller_ctx, JSValueConst func_obj, JSValueConst this_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
     "int (*JS_CheckDefineGlobalVar)(JSContext *ctx, JSAtom prop, int flags);"
     "int (*JS_CheckGlobalVar)(JSContext *ctx, JSAtom prop);"
@@ -32399,6 +32400,7 @@ static const char prolog[] =
     "int (*js_binary_arith_slow)(JSContext *ctx, JSValue *sp, int op);"
     "JSValue (*js_closure)(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
     "int (*js_poll_interrupts)(JSContext *ctx);"
+    "int (*js_operator_typeof)(JSContext *ctx, JSValueConst op1);"
     "int (*js_relational_slow)(JSContext *ctx, JSValue *sp, int op);"
     "void (*set_value)(JSContext *ctx, JSValue *pval, JSValue new_val);"
     "static inline void JS_FreeValue(JSContext *ctx, JSValue v)"
@@ -32626,6 +32628,16 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp--;",
                 idx, idx, idx);
             pc += 3;
+            break;
+        case 0x97: // typeof:none 1 +1,-1
+            dbuf_putstr(&dbuf,
+                "{"
+                "JSValue op1 = sp[-1];"
+                "JSAtom atom = js_operator_typeof(ctx, op1);"
+                "JS_FreeValue(ctx, op1);"
+                "sp[-1] = JS_AtomToString(ctx, atom);"
+                "}");
+            pc++;
             break;
         case 0x9D: // add:none 1 +1,-2
             idx = gensym++;
@@ -32897,6 +32909,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         *p = (void *) &name; \
     } while (0)
     link_symbol(__JS_FreeValue);
+    link_symbol(JS_AtomToString);
     link_symbol(JS_CallInternal);
     link_symbol(JS_CheckDefineGlobalVar);
     link_symbol(JS_CheckGlobalVar);
@@ -32912,6 +32925,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(js_binary_arith_slow);
     link_symbol(js_closure);
     link_symbol(js_poll_interrupts);
+    link_symbol(js_operator_instanceof);
     link_symbol(js_relational_slow);
     link_symbol(set_value);
 #undef link_symbol
