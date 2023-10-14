@@ -594,7 +594,9 @@ typedef struct JSFunctionBytecode {
                         JSValue *sp,
                         JSValue *arg_buf,
                         JSValue *var_buf,
+                        JSVarRef **var_refs,
                         struct JSFunctionBytecode *b,
+                        JSStackFrame *sf,
                         JSValue *rv);
     JSAtom func_name;
     JSVarDef *vardefs; /* arguments + local variables (arg_count + var_count) (self pointer) */
@@ -16296,7 +16298,7 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
     ctx = b->realm; /* set the current realm */
 
     if (b->jitcode) {
-        sp = b->jitcode(ctx, sp, arg_buf, var_buf, b, &ret_val);
+        sp = b->jitcode(ctx, sp, arg_buf, var_buf, var_refs, b, sf, &ret_val);
         if (JS_IsException(ret_val))
             goto exception;
         // TODO handle b->func_kind != JS_FUNC_NORMAL
@@ -32374,6 +32376,8 @@ static const char prolog[] =
     "} JSValue;"
     "typedef struct JSContext JSContext;"
     "typedef struct JSFunctionBytecode JSFunctionBytecode;"
+    "typedef struct JSStackFrame JSStackFrame;"
+    "typedef struct JSVarRef JSVarRef;"
     "int (*JS_CheckDefineGlobalVar)(JSContext *ctx, JSAtom prop, int flags);"
     "int (*JS_DefineGlobalFunction)(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
     "JSValue (*JS_DupValue)(JSContext *ctx, JSValue v);"
@@ -32385,9 +32389,14 @@ static const char prolog[] =
                                                     "int idx, BOOL is_ref);"
     "int (*js_add_slow)(JSContext *ctx, JSValue *sp);"
     "int (*js_binary_arith_slow)(JSContext *ctx, JSValue *sp, int op);"
+    "JSValue (*js_closure)(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
     "int (*js_poll_interrupts)(JSContext *ctx);"
     "int (*js_relational_slow)(JSContext *ctx, JSValue *sp, int op);"
     "void (*set_value)(JSContext *ctx, JSValue *pval, JSValue new_val);"
+    "static inline JS_BOOL JS_IsException(JSValueConst v)"
+    "{"
+    "    return js_unlikely(JS_VALUE_GET_TAG(v) == JS_TAG_EXCEPTION);"
+    "}"
     "static js_force_inline JSValue JS_NewBool(JSContext *ctx, JS_BOOL val)"
     "{"
     "    return JS_MKVAL(JS_TAG_BOOL, (val != 0));"
@@ -32407,7 +32416,7 @@ static const char prolog[] =
     "{"
     "    return js_unlikely(JS_VALUE_GET_TAG(v) == JS_TAG_UNINITIALIZED);"
     "}"
-    "JSValue *jitcode(JSContext *ctx, JSValue *sp, JSValue *arg_buf, JSValue *var_buf, JSFunctionBytecode *b, JSValue *rv)"
+    "JSValue *jitcode(JSContext *ctx, JSValue *sp, JSValue *arg_buf, JSValue *var_buf, JSVarRef **var_refs, JSFunctionBytecode *b, JSStackFrame *sf, JSValue *rv)"
     "{"
     "    JSValue ret_val;"
     ;
@@ -32631,6 +32640,18 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_printf(&dbuf, "*sp++ = JS_NewInt32(ctx, %d);", get_i8(pc+1));
             pc += 2;
             break;
+        case 0xBE: // fclosure8:const8 2 +1,-0
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue **cpool = (void *) b + %d;"
+                "*sp++ = js_closure(ctx, JS_DupValue(ctx, (*cpool)[%d]), var_refs, sf);"
+                "if (unlikely(JS_IsException(sp[-1])))"
+                "    goto exception;"
+                "}",
+                (int) offsetof(JSFunctionBytecode, cpool),
+                pc[1]);
+            pc += 2;
+            break;
         case 0xC7: // put_loc0:none_loc 1 +0,-1
         case 0xC8: // put_loc1:none_loc 1 +0,-1
         case 0xC9: // put_loc2:none_loc 1 +0,-1
@@ -32718,6 +32739,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_ToBoolFree);
     link_symbol(js_add_slow);
     link_symbol(js_binary_arith_slow);
+    link_symbol(js_closure);
     link_symbol(js_poll_interrupts);
     link_symbol(js_relational_slow);
     link_symbol(set_value);
