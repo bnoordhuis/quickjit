@@ -32378,6 +32378,7 @@ static const char prolog[] =
     "int (*JS_DefineGlobalFunction)(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
     "JSValue (*JS_DupValue)(JSContext *ctx, JSValue v);"
     "void (*JS_FreeValue)(JSContext *ctx, JSValue v);"
+    "JSValue (*JS_GetGlobalVar)(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "int (*JS_ToBoolFree)(JSContext *ctx, JSValue val);"
     "JSValue (*JS_ThrowReferenceErrorUninitialized2)(JSContext *ctx,"
                                                     "JSFunctionBytecode *b,"
@@ -32471,33 +32472,33 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_putstr(&dbuf, "goto done;");
             pc++;
             break;
+        case 0x37: // get_var_undef:atom 5 +1,-0
+        case 0x38: // get_var:atom 5 +1,-0
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue val = JS_GetGlobalVar(ctx, %d, %d);"
+                "if (unlikely(JS_IsException(val)))"
+                "    goto exception;"
+                "*sp++ = val;"
+                "}",
+                /*atom*/get_u32(pc+1), op-0x37);
+            pc += 5;
+            break;
         case 0x3F: // check_define_var:atom_u8 6 +0,-0
-            {
-                JSAtom atom;
-                int flags;
-                atom = get_u32(pc);
-                flags = pc[4];
-                pc += 5;
-                dbuf_printf(&dbuf,
-                    "if (JS_CheckDefineGlobalVar(ctx, %d, %d))"
-                    "    goto exception;",
-                    atom, flags);
-            }
+            dbuf_printf(&dbuf,
+                "if (JS_CheckDefineGlobalVar(ctx, %d, %d))"
+                "    goto exception;",
+                /*atom*/get_u32(pc+1), /*flags*/pc[5]);
+            pc += 6;
             break;
         case 0x40: // define_func:atom_u8 6 +0,-1
-            {
-                JSAtom atom;
-                int flags;
-                atom = get_u32(pc);
-                flags = pc[4];
-                pc += 5;
-                dbuf_printf(&dbuf,
-                    "if (JS_DefineGlobalFunction(ctx, %d, sp[-1], %d))"
-                    "    goto exception;"
-                    "JS_FreeValue(ctx, sp[-1]);"
-                    "sp--;",
-                    atom, flags);
-            }
+            dbuf_printf(&dbuf,
+                "if (JS_DefineGlobalFunction(ctx, %d, sp[-1], %d))"
+                "    goto exception;"
+                "JS_FreeValue(ctx, sp[-1]);"
+                "sp--;",
+                /*atom*/get_u32(pc+1), /*flags*/pc[5]);
+            pc += 6;
             break;
         case 0x61: // set_loc_uninitialized:loc 3 +0,-0
             idx = get_u16(pc+1);
@@ -32712,6 +32713,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_DefineGlobalFunction);
     link_symbol(JS_DupValue);
     link_symbol(JS_FreeValue);
+    link_symbol(JS_GetGlobalVar);
     link_symbol(JS_ThrowReferenceErrorUninitialized2);
     link_symbol(JS_ToBoolFree);
     link_symbol(js_add_slow);
