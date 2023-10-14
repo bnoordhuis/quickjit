@@ -32656,6 +32656,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 binops[op-0xA3], op);
             pc++;
             break;
+        case 0xB2: // push_minus1:none_int 1 +1,-0
         case 0xB3: // push_0:none_int 1 +1,-0
         case 0xB4: // push_1:none_int 1 +1,-0
         case 0xB5: // push_2:none_int 1 +1,-0
@@ -32664,7 +32665,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0xB8: // push_5:none_int 1 +1,-0
         case 0xB9: // push_6:none_int 1 +1,-0
         case 0xBA: // push_7:none_int 1 +1,-0
-            dbuf_printf(&dbuf, "*sp++ = JS_NewInt32(ctx, %d);", op-0xB3);
+            dbuf_printf(&dbuf, "*sp++ = JS_NewInt32(ctx, %d);", op-OP_push_0);
             pc++;
             break;
         case 0xBB: // push_i8:i8 2 +1,-0
