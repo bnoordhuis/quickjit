@@ -32690,6 +32690,36 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 binops[op-0xA3], op);
             pc++;
             break;
+        case 0xA9: // eq:none 1 +1,-2
+        case 0xAA: // neq:none 1 +1,-2
+        case 0xAB: // strict_eq:none 1 +1,-2
+        case 0xAC: // strict_neq:none 1 +1,-2
+            static const char cmpops[][3] = {"==","!=","==","!="};
+            static const char slowcalls[][19] =
+            {
+                "js_eq_slow",
+                "js_eq_slow",
+                "js_strict_eq_slow",
+                "js_strict_eq_slow",
+            };
+            idx = op - 0xA9;
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue op1, op2;"
+                "op1 = sp[-2];"
+                "op2 = sp[-1];"
+                "if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                "    sp[-2] = JS_NewBool(ctx, JS_VALUE_GET_INT(op1) %s JS_VALUE_GET_INT(op2));"
+                "    sp--;"
+                "} else {"
+                "    if (%s(ctx, sp, %d))"
+                "        goto exception;"
+                "    sp--;"
+                "}"
+                "}",
+                cmpops[idx], slowcalls[idx], idx & 1);
+            pc++;
+            break;
         case 0xB0: // is_undefined_or_null:none 1 +1,-1
             dbuf_putstr(&dbuf,
                 "if (JS_VALUE_GET_TAG(sp[-1]) == JS_TAG_UNDEFINED ||"
