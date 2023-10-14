@@ -32399,9 +32399,11 @@ static const char prolog[] =
     "int (*js_add_slow)(JSContext *ctx, JSValue *sp);"
     "int (*js_binary_arith_slow)(JSContext *ctx, JSValue *sp, int op);"
     "JSValue (*js_closure)(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
+    "int (*js_eq_slow)(JSContext *ctx, JSValue *sp, BOOL is_neq);"
     "int (*js_poll_interrupts)(JSContext *ctx);"
     "int (*js_operator_typeof)(JSContext *ctx, JSValueConst op1);"
     "int (*js_relational_slow)(JSContext *ctx, JSValue *sp, int op);"
+    "int (*js_strict_eq_slow)(JSContext *ctx, JSValue *sp, BOOL is_neq);"
     "void (*set_value)(JSContext *ctx, JSValue *pval, JSValue new_val);"
     "static inline void JS_FreeValue(JSContext *ctx, JSValue v)"
     "{"
@@ -32888,14 +32890,17 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             pc++;
             break;
         case 0xF2: // typeof_is_undefined:none 1 +1,-1
-            dbuf_putstr(&dbuf,
-                "if (js_operator_typeof(ctx, sp[-1]) == JS_ATOM_undefined) {"
+        case 0xF3: // typeof_is_function:none 1 +1,-1
+            static int typeofs[] = {JS_ATOM_undefined, JS_ATOM_function};
+            dbuf_printf(&dbuf,
+                "if (js_operator_typeof(ctx, sp[-1]) == %d) {"
                 "    JS_FreeValue(ctx, sp[-1]);"
                 "    sp[-1] = JS_TRUE;"
                 "} else {"
                 "    JS_FreeValue(ctx, sp[-1]);"
                 "    sp[-1] = JS_FALSE;"
-                "}");
+                "}",
+                typeofs[op-0xF2]);
             pc++;
             break;
         }
@@ -32935,9 +32940,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(js_add_slow);
     link_symbol(js_binary_arith_slow);
     link_symbol(js_closure);
+    link_symbol(js_eq_slow);
     link_symbol(js_poll_interrupts);
-    link_symbol(js_operator_instanceof);
+    link_symbol(js_operator_typeof);
     link_symbol(js_relational_slow);
+    link_symbol(js_strict_eq_slow);
     link_symbol(set_value);
 #undef link_symbol
 
