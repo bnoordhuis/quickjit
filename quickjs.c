@@ -32656,6 +32656,17 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 binops[op-0xA3], op);
             pc++;
             break;
+        case 0xB0: // is_undefined_or_null:none 1 +1,-1
+            dbuf_putstr(&dbuf,
+                "if (JS_VALUE_GET_TAG(sp[-1]) == JS_TAG_UNDEFINED ||"
+                "    JS_VALUE_GET_TAG(sp[-1]) == JS_TAG_NULL) {"
+                "    sp[-1] = JS_TRUE;"
+                "} else {"
+                "    JS_FreeValue(ctx, sp[-1]);"
+                "    sp[-1] = JS_FALSE;"
+                "}");
+            pc++;
+            break;
         case 0xB1: // nop:none 1 +0,-0
             pc++;
             break;
