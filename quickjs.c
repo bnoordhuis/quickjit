@@ -32499,32 +32499,30 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             break;
         case 0x22: // call:npop 3 +1,-1
         case 0x23: // tail_call:npop 3 +0,-1
-            {
-                call_argc = get_u16(pc+1);
-                pc += 3;
-            has_call_argc:
+            call_argc = get_u16(pc+1);
+            pc += 3;
+        has_call_argc:
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue *call_argv = sp - %d;"
+                //"sf->cur_pc = pc;" //TODO
+                "ret_val = JS_CallInternal(ctx, call_argv[-1], JS_UNDEFINED,"
+                "                          JS_UNDEFINED, %d, call_argv, 0);"
+                "if (unlikely(JS_IsException(ret_val)))"
+                "    goto exception;",
+                call_argc, call_argc);
+            if (op == OP_tail_call) {
+                dbuf_putstr(&dbuf, "goto done;");
+            } else {
                 dbuf_printf(&dbuf,
-                    "{"
-                    "JSValue *call_argv = sp - %d;"
-                    //"sf->cur_pc = pc;" //TODO
-                    "ret_val = JS_CallInternal(ctx, call_argv[-1], JS_UNDEFINED,"
-                    "                          JS_UNDEFINED, %d, call_argv, 0);"
-                    "if (unlikely(JS_IsException(ret_val)))"
-                    "    goto exception;",
-                    call_argc, call_argc);
-                if (op == OP_tail_call) {
-                    dbuf_putstr(&dbuf, "goto done;");
-                } else {
-                    dbuf_printf(&dbuf,
-                        "for(int i = -1; i < %d; i++)"
-                        "    JS_FreeValue(ctx, call_argv[i]);"
-                        "sp -= %d;"
-                        "*sp++ = ret_val;",
-                        call_argc,
-                        call_argc + 1);
-                }
-                dbuf_putstr(&dbuf, "}");
+                    "for(int i = -1; i < %d; i++)"
+                    "    JS_FreeValue(ctx, call_argv[i]);"
+                    "sp -= %d;"
+                    "*sp++ = ret_val;",
+                    call_argc,
+                    call_argc + 1);
             }
+            dbuf_putstr(&dbuf, "}");
             break;
         case 0x28: // return:none 1 +0,-1
             dbuf_putstr(&dbuf, "ret_val = *--sp;");
