@@ -32392,9 +32392,9 @@ static const char prolog[] =
     "JSValue (*JS_DupValue)(JSContext *ctx, JSValue v);"
     "JSValue (*JS_GetGlobalVar)(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "int (*JS_ToBoolFree)(JSContext *ctx, JSValue val);"
-    "JSValue (*JS_ThrowReferenceErrorUninitialized2)(JSContext *ctx,"
-                                                    "JSFunctionBytecode *b,"
-                                                    "int idx, BOOL is_ref);"
+    "int (*JS_SetGlobalVar)(JSContext *ctx, JSAtom prop, JSValue val, int flag);"
+    "JSValue (*JS_ThrowReferenceErrorNotDefined)(JSContext *ctx, JSAtom name);"
+    "JSValue (*JS_ThrowReferenceErrorUninitialized2)(JSContext *ctx, JSFunctionBytecode *b, int idx, BOOL is_ref);"
     "int (*js_add_slow)(JSContext *ctx, JSValue *sp);"
     "int (*js_binary_arith_slow)(JSContext *ctx, JSValue *sp, int op);"
     "JSValue (*js_closure)(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
@@ -32555,6 +32555,22 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "*sp++ = val;"
                 "}",
                 /*atom*/get_u32(pc+1), op-0x37);
+            pc += 5;
+            break;
+        case 0x3B: // put_var_strict:atom 5 +0,-2
+            idx = /*atom*/get_u32(pc+1);
+            dbuf_printf(&dbuf,
+                "{" /* sp[-2] is JS_TRUE or JS_FALSE */
+                "if (unlikely(!JS_VALUE_GET_INT(sp[-2]))) {"
+                "    JS_ThrowReferenceErrorNotDefined(ctx, %d);"
+                "    goto exception;"
+                "}"
+                "int ret = JS_SetGlobalVar(ctx, %d, sp[-1], 2);"
+                "sp -= 2;"
+                "if (unlikely(ret < 0))"
+                "    goto exception;"
+                "}",
+                idx, idx);
             pc += 5;
             break;
         case 0x3E: // define_var:atom_u8 6 +0,-0
@@ -32888,6 +32904,8 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_DefineGlobalVar);
     link_symbol(JS_DupValue);
     link_symbol(JS_GetGlobalVar);
+    link_symbol(JS_SetGlobalVar);
+    link_symbol(JS_ThrowReferenceErrorNotDefined);
     link_symbol(JS_ThrowReferenceErrorUninitialized2);
     link_symbol(JS_ToBoolFree);
     link_symbol(js_add_slow);
