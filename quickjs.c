@@ -32378,6 +32378,7 @@ static const char prolog[] =
     "typedef struct JSFunctionBytecode JSFunctionBytecode;"
     "typedef struct JSStackFrame JSStackFrame;"
     "typedef struct JSVarRef JSVarRef;"
+    "JSValue (*JS_CallInternal)(JSContext *caller_ctx, JSValueConst func_obj, JSValueConst this_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
     "int (*JS_CheckDefineGlobalVar)(JSContext *ctx, JSAtom prop, int flags);"
     "int (*JS_DefineGlobalFunction)(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
     "JSValue (*JS_DupValue)(JSContext *ctx, JSValue v);"
@@ -32437,6 +32438,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     TCCState *s;
     DynBuf dbuf;
     void **p;
+    int call_argc;
     int gensym;
     int idx;
 
@@ -32470,6 +32472,35 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[0] = JS_DupValue(ctx, sp[-1]);"
                 "sp++;");
             pc++;
+            break;
+        case 0x22: // call:npop 3 +1,-1
+        case 0x23: // tail_call:npop 3 +0,-1
+            {
+                call_argc = get_u16(pc+1);
+                pc += 3;
+            has_call_argc:
+                dbuf_printf(&dbuf,
+                    "{"
+                    "JSValue *call_argv = sp - %d;"
+                    //"sf->cur_pc = pc;" //TODO
+                    "ret_val = JS_CallInternal(ctx, call_argv[-1], JS_UNDEFINED,"
+                    "                          JS_UNDEFINED, %d, call_argv, 0);"
+                    "if (unlikely(JS_IsException(ret_val)))"
+                    "    goto exception;",
+                    call_argc, call_argc);
+                if (op == OP_tail_call) {
+                    dbuf_putstr(&dbuf, "goto done;");
+                } else {
+                    dbuf_printf(&dbuf,
+                        "for(int i = -1; i < %d; i++)"
+                        "    JS_FreeValue(ctx, call_argv[i]);"
+                        "sp -= %d;"
+                        "*sp++ = ret_val;",
+                        call_argc,
+                        call_argc + 1);
+                }
+                dbuf_putstr(&dbuf, "}");
+            }
             break;
         case 0x28: // return:none 1 +0,-1
             dbuf_putstr(&dbuf, "ret_val = *--sp;");
@@ -32709,6 +32740,13 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_printf(&dbuf, "goto pc%d;", idx);
             pc += 2;
             break;
+        case 0xEC: // call0:npopx 1 +1,-1
+        case 0xED: // call1:npopx 1 +1,-1
+        case 0xEE: // call2:npopx 1 +1,-1
+        case 0xEF: // call3:npopx 1 +1,-1
+            call_argc = op - 0xEC;
+            pc++;
+            goto has_call_argc;
         }
     }
 
@@ -32730,6 +32768,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         assert(p); \
         *p = (void *) &name; \
     } while (0)
+    link_symbol(JS_CallInternal);
     link_symbol(JS_CheckDefineGlobalVar);
     link_symbol(JS_DefineGlobalFunction);
     link_symbol(JS_DupValue);
