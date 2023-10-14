@@ -32387,6 +32387,7 @@ static const char prolog[] =
     "JSValue (*JS_CallInternal)(JSContext *caller_ctx, JSValueConst func_obj, JSValueConst this_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
     "int (*JS_CheckDefineGlobalVar)(JSContext *ctx, JSAtom prop, int flags);"
     "int (*JS_DefineGlobalFunction)(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
+    "int (*JS_DefineGlobalVar)(JSContext *ctx, JSAtom prop, int def_flags);"
     "JSValue (*JS_DupValue)(JSContext *ctx, JSValue v);"
     "JSValue (*JS_GetGlobalVar)(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "int (*JS_ToBoolFree)(JSContext *ctx, JSValue val);"
@@ -32537,6 +32538,13 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}",
                 /*atom*/get_u32(pc+1), op-0x37);
             pc += 5;
+            break;
+        case 0x3E: // define_var:atom_u8 6 +0,-0
+            dbuf_printf(&dbuf,
+                "if (JS_DefineGlobalVar(ctx, %d, %d))"
+                "    goto exception;",
+                /*atom*/get_u32(pc+1), /*flags*/pc[5]);
+            pc += 6;
             break;
         case 0x3F: // check_define_var:atom_u8 6 +0,-0
             dbuf_printf(&dbuf,
@@ -32828,6 +32836,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_CallInternal);
     link_symbol(JS_CheckDefineGlobalVar);
     link_symbol(JS_DefineGlobalFunction);
+    link_symbol(JS_DefineGlobalVar);
     link_symbol(JS_DupValue);
     link_symbol(JS_GetGlobalVar);
     link_symbol(JS_ThrowReferenceErrorUninitialized2);
