@@ -32437,9 +32437,6 @@ static const char prolog[] =
     "{"
     "    return js_unlikely(JS_VALUE_GET_TAG(v) == JS_TAG_UNINITIALIZED);"
     "}"
-    "JSValue *jitcode(JSContext *ctx, JSValue *sp, JSValue *arg_buf, JSValue *var_buf, JSVarRef **var_refs, JSFunctionBytecode *b, JSStackFrame *sf, JSValue *rv)"
-    "{"
-    "    JSValue ret_val;"
     ;
 
 static const char epilog[] =
@@ -32465,6 +32462,17 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     gensym = 0;
     js_dbuf_init(ctx, &dbuf);
     dbuf_putstr(&dbuf, prolog);
+
+    dbuf_printf(&dbuf,
+        "static inline void set_cur_pc(JSStackFrame *sf, void *pc)"
+        "{"
+        "    void **cur_pc = (void *) sf + %d;"
+        "    *cur_pc = pc;"
+        "}"
+        "JSValue *jitcode(JSContext *ctx, JSValue *sp, JSValue *arg_buf, JSValue *var_buf, JSVarRef **var_refs, JSFunctionBytecode *b, JSStackFrame *sf, JSValue *rv)"
+        "{"
+        "    JSValue ret_val;",
+        (int) offsetof(JSStackFrame, cur_pc));
 
     pc = b->byte_code_buf;
     while (pc < &b->byte_code_buf[b->byte_code_len]) {
@@ -32504,17 +32512,23 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0x22: // call:npop 3 +1,-1
         case 0x23: // tail_call:npop 3 +0,-1
             call_argc = get_u16(pc+1);
-            pc += 3;
         has_call_argc:
             dbuf_printf(&dbuf,
                 "{"
                 "JSValue *call_argv = sp - %d;"
-                //"sf->cur_pc = pc;" //TODO
+                "set_cur_pc(sf, (void *) %p);"
                 "ret_val = JS_CallInternal(ctx, call_argv[-1], JS_UNDEFINED,"
                 "                          JS_UNDEFINED, %d, call_argv, 0);"
                 "if (unlikely(JS_IsException(ret_val)))"
                 "    goto exception;",
-                call_argc, call_argc);
+                call_argc, pc, call_argc);
+            if (op == OP_call || op == OP_tail_call) {
+                pc += 3;
+            } else if (op >= OP_call0 && op <= OP_call3) {
+                pc += 1;
+            } else {
+                abort();
+            }
             if (op == OP_tail_call) {
                 dbuf_putstr(&dbuf, "goto done;");
             } else {
@@ -32610,12 +32624,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_printf(&dbuf,
                 "if (unlikely(JS_IsUninitialized(var_buf[%d]))) {"
                 "    JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, FALSE);"
-                //"    sf->cur_pc = b->byte_code_buf + ${pc};" //TODO needed for proper stack traces
+                "    set_cur_pc(sf, (void *) %p);"
                 "    goto exception;"
                 "}"
                 "sp[0] = JS_DupValue(ctx, var_buf[%d]);"
                 "sp++;",
-                idx, idx, idx);
+                idx, idx, pc, idx);
             pc += 3;
             break;
         case 0x63: // put_loc_check:loc 3 +0,-1
@@ -32623,12 +32637,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_printf(&dbuf,
                 "if (unlikely(JS_IsUninitialized(var_buf[%d]))) {"
                 "    JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, FALSE);"
-                //"    sf->cur_pc = b->byte_code_buf + ${pc};" //TODO needed for proper stack traces
+                "    set_cur_pc(sf, (void *) %p);"
                 "    goto exception;"
                 "}"
                 "set_value(ctx, &var_buf[%d], sp[-1]);"
                 "sp--;",
-                idx, idx, idx);
+                idx, idx, pc, idx);
             pc += 3;
             break;
         case 0x97: // typeof:none 1 +1,-1
@@ -32662,12 +32676,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    } else {"
                 "    add_slow%d:"
                 "        if (js_add_slow(ctx, sp)) {"
-                //"            sf->cur_pc = b->byte_code_buf + ${pc};" // FIXME
+                "            set_cur_pc(sf, (void *) %p);"
                 "            goto exception;"
                 "        }"
                 "        sp--;"
                 "    }"
-                "}", idx, idx);
+                "}", idx, idx, pc);
             pc++;
             break;
         case 0x9E: // sub:none 1 +1,-2
@@ -32695,11 +32709,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "if (0) {" // HACK
                 "binary_arith_slow%d:"
                 "    if (js_binary_arith_slow(ctx, sp, %d)) {"
-                //"        sf->cur_pc = b->byte_code_buf + ${pc};" // TODO
+                "        set_cur_pc(sf, (void *) %p);"
                 "        goto exception;"
                 "    }"
                 "    sp--;"
-                "}", idx, idx, idx, op);
+                "}", idx, idx, idx, op, pc);
             pc++;
             break;
         case 0xA3: // lt:none 1 +1,-2
@@ -32717,13 +32731,13 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    sp--;"
                 "} else {"
                 "    if (js_relational_slow(ctx, sp, %d)) {"
-                //"        sf->cur_pc = b->byte_code_buf + ${pc};" //TODO needed for proper stack traces
+                "        set_cur_pc(sf, (void *) %p);"
                 "        goto exception;"
                 "    }"
                 "    sp--;"
                 "}"
                 "}",
-                binops[op-0xA3], op);
+                binops[op-0xA3], op, pc);
             pc++;
             break;
         case 0xA9: // eq:none 1 +1,-2
@@ -32847,14 +32861,14 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    }"
                 "    sp--;"
                 "    if (unlikely(js_poll_interrupts(ctx))) {"
-                //"        sf->cur_pc = b->byte_code_buf + ${pc};" //TODO needed for proper stack traces
+                "        set_cur_pc(sf, (void *) %p);"
                 "        goto exception;"
                 "    }"
                 "    if (!res) {"
                 "        goto pc%d;"
                 "    }"
                 "}",
-                idx);
+                pc, idx);
             pc += 2;
             break;
         case 0xEA: // goto8:label8 2 +0,-0
@@ -32867,7 +32881,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0xEE: // call2:npopx 1 +1,-1
         case 0xEF: // call3:npopx 1 +1,-1
             call_argc = op - 0xEC;
-            pc++;
             goto has_call_argc;
         case 0xF0: // is_undefined:none 1 +1,-1
             dbuf_putstr(&dbuf,
