@@ -32543,6 +32543,30 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             }
             dbuf_putstr(&dbuf, "}");
             break;
+        case 0x24: // call_method:npop 3 +1,-2
+        case 0x25: // tail_call_method:npop 3 +0,-2
+            dbuf_printf(&dbuf,
+                "{"
+                "int call_argc = %d;"
+                "JSValue *call_argv = sp - call_argc;"
+                "set_cur_pc(sf, (void *) %p);"
+                "ret_val = JS_CallInternal(ctx, call_argv[-1], call_argv[-2],"
+                "                          JS_UNDEFINED, call_argc, call_argv, 0);"
+                "if (unlikely(JS_IsException(ret_val)))"
+                "    goto exception;",
+                get_u16(pc+1), /*next opcode*/pc+3);
+            if (op == OP_tail_call_method) {
+                dbuf_putstr(&dbuf, "goto done;");
+            } else {
+                dbuf_putstr(&dbuf,
+                    "for(int i = -2; i < call_argc; i++)"
+                    "    JS_FreeValue(ctx, call_argv[i]);"
+                    "sp -= call_argc + 2;"
+                    "*sp++ = ret_val;");
+            }
+            dbuf_putstr(&dbuf, "}");
+            pc += 3;
+            break;
         case 0x28: // return:none 1 +0,-1
             dbuf_putstr(&dbuf, "ret_val = *--sp;");
             dbuf_putstr(&dbuf, "goto done;");
