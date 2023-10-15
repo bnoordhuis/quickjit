@@ -32848,6 +32848,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             pc++;
             break;
         case 0xE8: // if_false8:label8 2 +0,-1
+        case 0xE9: // if_true8:label8 2 +0,-1
             idx = idx + 1 + (int8_t)pc[1];
             dbuf_printf(&dbuf,
                 "{"
@@ -32864,11 +32865,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "        set_cur_pc(sf, (void *) %p);"
                 "        goto exception;"
                 "    }"
-                "    if (!res) {"
+                "    if (%cres) {"
                 "        goto pc%d;"
                 "    }"
                 "}",
-                pc, idx);
+                pc, "! "[op-0xE8], idx);
             pc += 2;
             break;
         case 0xEA: // goto8:label8 2 +0,-0
