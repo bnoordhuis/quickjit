@@ -32394,6 +32394,7 @@ static const char prolog[] =
     "JSValue (*JS_DupValue)(JSContext *ctx, JSValue v);"
     "JSValue (*JS_GetGlobalVar)(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "JSValue (*JS_GetProperty)(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
+    "JSValue (*JS_NewObject)(JSContext *ctx);"
     "JSValue (*JS_NewSymbolFromAtom)(JSContext *ctx, JSAtom descr, int atom_type);"
     "int (*JS_SetGlobalVar)(JSContext *ctx, JSAtom prop, JSValue val, int flag);"
     "JSValue (*JS_ThrowReferenceErrorNotDefined)(JSContext *ctx, JSAtom name);"
@@ -32577,6 +32578,13 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             break;
         case 0x0A: // push_true:none 1 +1,-0
             dbuf_putstr(&dbuf, "*sp++ = JS_TRUE;");
+            pc++;
+            break;
+        case 0x0B: // object:none 1 +1,-0
+            dbuf_putstr(&dbuf,
+                "*sp++ = JS_NewObject(ctx);"
+                "if (unlikely(JS_IsException(sp[-1])))"
+                "    goto exception;");
             pc++;
             break;
         case 0x0E: // drop:none 1 +0,-1
@@ -33069,6 +33077,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_DupValue);
     link_symbol(JS_GetGlobalVar);
     link_symbol(JS_GetProperty);
+    link_symbol(JS_NewObject);
     link_symbol(JS_NewSymbolFromAtom);
     link_symbol(JS_SetGlobalVar);
     link_symbol(JS_ThrowReferenceErrorNotDefined);
