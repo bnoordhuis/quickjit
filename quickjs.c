@@ -597,6 +597,7 @@ typedef struct JSFunctionBytecode {
                         JSVarRef **var_refs,
                         struct JSFunctionBytecode *b,
                         JSStackFrame *sf,
+                        JSValueConst this_obj,
                         JSValue *rv);
     JSAtom func_name;
     JSVarDef *vardefs; /* arguments + local variables (arg_count + var_count) (self pointer) */
@@ -16298,7 +16299,7 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
     ctx = b->realm; /* set the current realm */
 
     if (b->jitcode) {
-        sp = b->jitcode(ctx, sp, arg_buf, var_buf, var_refs, b, sf, &ret_val);
+        sp = b->jitcode(ctx, sp, arg_buf, var_buf, var_refs, b, sf, this_obj, &ret_val);
         if (JS_IsException(ret_val))
             goto exception;
         // TODO handle b->func_kind != JS_FUNC_NORMAL
@@ -32394,10 +32395,11 @@ static const char prolog[] =
     "JSValue (*JS_GetGlobalVar)(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "JSValue (*JS_GetProperty)(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
     "JSValue (*JS_NewSymbolFromAtom)(JSContext *ctx, JSAtom descr, int atom_type);"
-    "int (*JS_ToBoolFree)(JSContext *ctx, JSValue val);"
     "int (*JS_SetGlobalVar)(JSContext *ctx, JSAtom prop, JSValue val, int flag);"
     "JSValue (*JS_ThrowReferenceErrorNotDefined)(JSContext *ctx, JSAtom name);"
     "JSValue (*JS_ThrowReferenceErrorUninitialized2)(JSContext *ctx, JSFunctionBytecode *b, int idx, BOOL is_ref);"
+    "int (*JS_ToBoolFree)(JSContext *ctx, JSValue val);"
+    "JSValue (*JS_ToObject)(JSContext *ctx, JSValueConst val);"
     "int (*js_add_slow)(JSContext *ctx, JSValue *sp);"
     "int (*js_binary_arith_slow)(JSContext *ctx, JSValue *sp, int op);"
     "JSValue (*js_closure)(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
@@ -32484,7 +32486,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         "    void **cur_pc = (void *) sf + %d;"
         "    *cur_pc = pc;"
         "}"
-        "JSValue *jitcode(JSContext *ctx, JSValue *sp, JSValue *arg_buf, JSValue *var_buf, JSVarRef **var_refs, JSFunctionBytecode *b, JSStackFrame *sf, JSValue *rv)"
+        "JSValue *jitcode(JSContext *ctx, JSValue *sp, JSValue *arg_buf, JSValue *var_buf, JSVarRef **var_refs, JSFunctionBytecode *b, JSStackFrame *sf, JSValueConst this_obj, JSValue *rv)"
         "{"
         "    JSValue ret_val;",
         (int) offsetof(JSFunctionBytecode, cpool),
@@ -32546,6 +32548,27 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             break;
         case 0x07: // null:none 1 +1,-0
             dbuf_putstr(&dbuf, "*sp++ = JS_NULL;");
+            pc++;
+            break;
+        case 0x08: // push_this:none 1 +1,-0
+            if (b->js_mode & JS_MODE_STRICT) {
+                dbuf_putstr(&dbuf, "*sp++ = JS_DupValue(ctx, this_obj);");
+            } else {
+                dbuf_printf(&dbuf,
+                    "if (JS_TAG_OBJECT == JS_VALUE_GET_TAG(this_obj)) {"
+                    "    *sp++ = JS_DupValue(ctx, this_obj);"
+                    "} else if (JS_TAG_NULL == JS_VALUE_GET_TAG(this_obj) ||"
+                    "           JS_TAG_UNDEFINED == JS_VALUE_GET_TAG(this_obj)) {"
+                    "    JSValue *global_obj = (void *) ctx + %d;"
+                    "    *sp++ = JS_DupValue(ctx, *global_obj);"
+                    "} else {"
+                    "    JSValue val = JS_ToObject(ctx, this_obj);"
+                    "    if (JS_IsException(val))"
+                    "        goto exception;"
+                    "    *sp++ = JS_DupValue(ctx, val);"
+                    "}",
+                    (int) offsetof(JSContext, global_obj));
+            }
             pc++;
             break;
         case 0x0E: // drop:none 1 +0,-1
@@ -33010,7 +33033,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         }
     }
 
-    dbuf_putstr(&dbuf, epilog);
+    dbuf_put(&dbuf, (void *) epilog, sizeof(epilog));
 
     s = tcc_new();
     if (-1 == tcc_set_options(s, "-vvv -Wall -Wunsupported -nostdinc"))
@@ -33043,6 +33066,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_ThrowReferenceErrorNotDefined);
     link_symbol(JS_ThrowReferenceErrorUninitialized2);
     link_symbol(JS_ToBoolFree);
+    link_symbol(JS_ToObject);
     link_symbol(js_add_slow);
     link_symbol(js_binary_arith_slow);
     link_symbol(js_closure);
