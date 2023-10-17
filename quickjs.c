@@ -32486,9 +32486,20 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_free(&dbuf);
             return;
         case 0x01: // push_i32:i32 5 +1,-0
-            idx = get_u32(pc);
-            dbuf_printf(&dbuf, "*sp++ = JS_NewInt32(ctx, %d);", idx);
-            pc += 4;
+            dbuf_printf(&dbuf,
+                "*sp++ = JS_NewInt32(ctx, %d);",
+                get_u32(pc+1));
+            pc += 5;
+            break;
+        case 0x02: // push_const:const 5 +1,-0
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue **cpool = (void *) b + %d;"
+                "*sp++ = JS_DupValue(ctx, (*cpool)[%u]);"
+                "}",
+                (int) offsetof(JSFunctionBytecode, cpool),
+                get_u32(pc+1));
+            pc += 5;
             break;
         case 0x0E: // drop:none 1 +0,-1
             dbuf_putstr(&dbuf,
