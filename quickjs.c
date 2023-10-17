@@ -32540,6 +32540,10 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 get_u32(pc+1), JS_ATOM_TYPE_PRIVATE);
             pc += 5;
             break;
+        case 0x06: // undefined:none 1 +1,-0
+            dbuf_putstr(&dbuf, "*sp++ = JS_UNDEFINED;");
+            pc++;
+            break;
         case 0x0E: // drop:none 1 +0,-1
             dbuf_putstr(&dbuf,
                 "JS_FreeValue(ctx, sp[-1]);"
