@@ -32383,8 +32383,8 @@ static const char prolog[] =
     "typedef struct JSFunctionBytecode JSFunctionBytecode;"
     "typedef struct JSStackFrame JSStackFrame;"
     "typedef struct JSVarRef JSVarRef;"
+    "JSValue (*__JS_AtomToValue)(JSContext *ctx, JSAtom atom, BOOL force_string);"
     "void (*__JS_FreeValue)(JSContext *ctx, JSValue v);"
-    "JSValue (*JS_AtomToString)(JSContext *ctx, JSAtom atom);"
     "JSValue (*JS_CallInternal)(JSContext *caller_ctx, JSValueConst func_obj, JSValueConst this_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
     "int (*JS_CheckDefineGlobalVar)(JSContext *ctx, JSAtom prop, int flags);"
     "int (*JS_CheckGlobalVar)(JSContext *ctx, JSAtom prop);"
@@ -32406,6 +32406,14 @@ static const char prolog[] =
     "int (*js_relational_slow)(JSContext *ctx, JSValue *sp, int op);"
     "int (*js_strict_eq_slow)(JSContext *ctx, JSValue *sp, BOOL is_neq);"
     "void (*set_value)(JSContext *ctx, JSValue *pval, JSValue new_val);"
+    "static inline JSValue JS_AtomToString(JSContext *ctx, JSAtom atom)"
+    "{"
+    "    return __JS_AtomToValue(ctx, atom, TRUE);"
+    "}"
+    "static inline JSValue JS_AtomToValue(JSContext *ctx, JSAtom atom)"
+    "{"
+    "    return __JS_AtomToValue(ctx, atom, FALSE);"
+    "}"
     "static inline void JS_FreeValue(JSContext *ctx, JSValue v)"
     "{"
     "    if (JS_VALUE_HAS_REF_COUNT(v)) {"
@@ -32511,6 +32519,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "if (unlikely(JS_IsException(sp[-1])))"
                 "    goto exception;"
                 "}",
+                get_u32(pc+1));
+            pc += 5;
+            break;
+        case 0x04: // push_atom_value:atom 5 +1,-0
+            dbuf_printf(&dbuf,
+                "*sp++ = JS_AtomToValue(ctx, %u);",
                 get_u32(pc+1));
             pc += 5;
             break;
@@ -32994,8 +33008,8 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         assert(p); \
         *p = (void *) &name; \
     } while (0)
+    link_symbol(__JS_AtomToValue);
     link_symbol(__JS_FreeValue);
-    link_symbol(JS_AtomToString);
     link_symbol(JS_CallInternal);
     link_symbol(JS_CheckDefineGlobalVar);
     link_symbol(JS_CheckGlobalVar);
