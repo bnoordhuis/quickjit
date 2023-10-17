@@ -32465,6 +32465,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     dbuf_putstr(&dbuf, prolog);
 
     dbuf_printf(&dbuf,
+        "static inline JSValue cpool(JSFunctionBytecode *b, int i)"
+        "{"
+        "    JSValue **pool = (void *) b + %d;"
+        "    return (*pool)[i];"
+        "}"
         "static inline void set_cur_pc(JSStackFrame *sf, void *pc)"
         "{"
         "    void **cur_pc = (void *) sf + %d;"
@@ -32473,6 +32478,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         "JSValue *jitcode(JSContext *ctx, JSValue *sp, JSValue *arg_buf, JSValue *var_buf, JSVarRef **var_refs, JSFunctionBytecode *b, JSStackFrame *sf, JSValue *rv)"
         "{"
         "    JSValue ret_val;",
+        (int) offsetof(JSFunctionBytecode, cpool),
         (int) offsetof(JSStackFrame, cur_pc));
 
     pc = b->byte_code_buf;
@@ -32493,11 +32499,18 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             break;
         case 0x02: // push_const:const 5 +1,-0
             dbuf_printf(&dbuf,
+                "*sp++ = JS_DupValue(ctx, cpool(b, %u));",
+                get_u32(pc+1));
+            pc += 5;
+            break;
+        case 0x03: // fclosure:const 5 +1,-0
+            dbuf_printf(&dbuf,
                 "{"
-                "JSValue **cpool = (void *) b + %d;"
-                "*sp++ = JS_DupValue(ctx, (*cpool)[%u]);"
+                "JSValue bfunc = JS_DupValue(ctx, cpool(b, %u));"
+                "*sp++ = js_closure(ctx, bfunc, var_refs, sf);"
+                "if (unlikely(JS_IsException(sp[-1])))"
+                "    goto exception;"
                 "}",
-                (int) offsetof(JSFunctionBytecode, cpool),
                 get_u32(pc+1));
             pc += 5;
             break;
@@ -32849,13 +32862,9 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             break;
         case 0xBE: // fclosure8:const8 2 +1,-0
             dbuf_printf(&dbuf,
-                "{"
-                "JSValue **cpool = (void *) b + %d;"
-                "*sp++ = js_closure(ctx, JS_DupValue(ctx, (*cpool)[%d]), var_refs, sf);"
+                "*sp++ = js_closure(ctx, JS_DupValue(ctx, cpool(b, %u)), var_refs, sf);"
                 "if (unlikely(JS_IsException(sp[-1])))"
-                "    goto exception;"
-                "}",
-                (int) offsetof(JSFunctionBytecode, cpool),
+                "    goto exception;",
                 pc[1]);
             pc += 2;
             break;
