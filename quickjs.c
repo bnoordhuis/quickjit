@@ -579,7 +579,7 @@ typedef enum JSFunctionKindEnum {
         JSValue *sp;                    \
         JSVarRef **var_refs;            \
         JSStackFrame *sf;               \
-        struct JSFunctionBytecode *b;   \
+        JSObject *p;                    \
     })
 
 #define p(x) x
@@ -16315,7 +16315,7 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
             .arg_buf = arg_buf,
             .sf = sf,
             .sp = sp,
-            .b = b,
+            .p = p,
         };
         ret_val = b->jitcode(ctx, func_obj, this_obj, new_target,
                              argc, argv, flags, &aux);
@@ -32402,6 +32402,7 @@ static const char prolog[] =
     "} JSRefCountHeader;"
     "typedef struct JSContext JSContext;"
     "typedef struct JSFunctionBytecode JSFunctionBytecode;"
+    "typedef struct JSObject JSObject;"
     "typedef struct JSStackFrame JSStackFrame;"
     "typedef struct JSVarRef JSVarRef;"
 #define p(x) #x
@@ -32418,6 +32419,7 @@ static const char prolog[] =
     "JSValue (*JS_GetGlobalVar)(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "JSValue (*JS_GetProperty)(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
     "JSValue (*JS_NewObject)(JSContext *ctx);"
+    "JSValue (*JS_NewObjectProto)(JSContext *ctx, JSValueConst proto);"
     "JSValue (*JS_NewSymbolFromAtom)(JSContext *ctx, JSAtom descr, int atom_type);"
     "int (*JS_SetGlobalVar)(JSContext *ctx, JSAtom prop, JSValue val, int flag);"
     "JSValue (*JS_ThrowReferenceErrorNotDefined)(JSContext *ctx, JSAtom name);"
@@ -32426,9 +32428,12 @@ static const char prolog[] =
     "JSValue (*JS_ToObject)(JSContext *ctx, JSValueConst val);"
     "int (*js_add_slow)(JSContext *ctx, JSValue *sp);"
     "int (*js_binary_arith_slow)(JSContext *ctx, JSValue *sp, int op);"
+    "JSValue (*js_build_arguments)(JSContext *ctx, int argc, JSValueConst *argv);"
+    "JSValue (*js_build_mapped_arguments)(JSContext *ctx, int argc, JSValueConst *argv, JSStackFrame *sf, int arg_count);"
     "JSValue (*js_build_rest)(JSContext *ctx, int first, int argc, JSValueConst *argv);"
     "JSValue (*js_closure)(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
     "int (*js_eq_slow)(JSContext *ctx, JSValue *sp, BOOL is_neq);"
+    "JSValue (*js_import_meta)(JSContext *ctx);"
     "int (*js_poll_interrupts)(JSContext *ctx);"
     "int (*js_operator_typeof)(JSContext *ctx, JSValueConst op1);"
     "int (*js_relational_slow)(JSContext *ctx, JSValue *sp, int op);"
@@ -32511,6 +32516,16 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         "    void **cur_pc = (void *) sf + %d;"
         "    *cur_pc = pc;"
         "}"
+        "static inline JSFunctionBytecode *function_bytecode(JSObject *p)"
+        "{"
+        "    void **field = (void *) p + %d;"
+        "    return *field;"
+        "}"
+        "static inline JSObject *home_object(JSObject *p)"
+        "{"
+        "    void **field = (void *) p + %d;"
+        "    return *field;"
+        "}"
         "JSValue jitcode(JSContext *ctx, JSValueConst func_obj,"
         "                JSValueConst this_obj, JSValueConst new_target,"
         "                int argc, JSValue *argv, int flags,"
@@ -32519,12 +32534,15 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         "    JSVarRef **var_refs = aux->var_refs;"
         "    JSValue *var_buf = aux->var_buf;"
         "    JSValue *arg_buf = aux->arg_buf;"
-        "    JSFunctionBytecode *b = aux->b;"
+        "    JSObject *p = aux->p;"
+        "    JSFunctionBytecode *b = function_bytecode(p);"
         "    JSStackFrame *sf = aux->sf;"
         "    JSValue *sp = aux->sp;"
         "    JSValue ret_val;",
         (int) offsetof(JSFunctionBytecode, cpool),
-        (int) offsetof(JSStackFrame, cur_pc));
+        (int) offsetof(JSStackFrame, cur_pc),
+        (int) offsetof(JSObject, u.func.function_bytecode),
+        (int) offsetof(JSObject, u.func.home_object));
 
     pc = b->byte_code_buf;
     while (pc < &b->byte_code_buf[b->byte_code_len]) {
@@ -32619,6 +32637,64 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "if (unlikely(JS_IsException(sp[-1])))"
                 "    goto exception;");
             pc++;
+            break;
+        case 0x0C: // special_object:u8 2 +1,-0
+            switch (pc[1]) {
+            case OP_SPECIAL_OBJECT_ARGUMENTS:
+                dbuf_putstr(&dbuf,
+                    "*sp++ = js_build_arguments(ctx, argc, (JSValueConst *)argv);"
+                    "if (unlikely(JS_IsException(sp[-1])))"
+                    "    goto exception;");
+                break;
+            case OP_SPECIAL_OBJECT_MAPPED_ARGUMENTS:
+                dbuf_printf(&dbuf,
+                    "{"
+                    "int n = %d;"
+                    "if (n > argc) n = argc;"
+                    "*sp++ = js_build_mapped_arguments(ctx, argc, (JSValueConst *)argv, sf, n);"
+                    "if (unlikely(JS_IsException(sp[-1])))"
+                    "    goto exception;"
+                    "}",
+                    b->arg_count);
+                break;
+            case OP_SPECIAL_OBJECT_THIS_FUNC:
+                dbuf_printf(&dbuf,
+                    "{"
+                    "JSValue *cur_func = (void *) sf + %d;"
+                    "*sp++ = JS_DupValue(ctx, *cur_func);"
+                    "}",
+                    (int) offsetof(JSStackFrame, cur_func));
+                break;
+            case OP_SPECIAL_OBJECT_NEW_TARGET:
+                dbuf_putstr(&dbuf,
+                    "*sp++ = JS_DupValue(ctx, new_target);");
+                break;
+            case OP_SPECIAL_OBJECT_HOME_OBJECT:
+                dbuf_putstr(&dbuf,
+                    "{"
+                    "    JSObject *p1 = home_object(p);"
+                    "    if (unlikely(!p1))"
+                    "        *sp++ = JS_UNDEFINED;"
+                    "    else"
+                    "        *sp++ = JS_DupValue(ctx, JS_MKPTR(JS_TAG_OBJECT, p1));"
+                    "}");
+                break;
+            case OP_SPECIAL_OBJECT_VAR_OBJECT:
+                dbuf_putstr(&dbuf,
+                    "*sp++ = JS_NewObjectProto(ctx, JS_NULL);"
+                    "if (unlikely(JS_IsException(sp[-1])))"
+                    "    goto exception;");
+                break;
+            case OP_SPECIAL_OBJECT_IMPORT_META:
+                dbuf_putstr(&dbuf,
+                    "*sp++ = js_import_meta(ctx);"
+                    "if (unlikely(JS_IsException(sp[-1])))"
+                    "    goto exception;");
+                break;
+            default:
+                abort();
+            }
+            pc += 2;
             break;
         case 0x0D: // rest:u16 3 +1,-0
             dbuf_printf(&dbuf,
@@ -33119,6 +33195,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_GetGlobalVar);
     link_symbol(JS_GetProperty);
     link_symbol(JS_NewObject);
+    link_symbol(JS_NewObjectProto);
     link_symbol(JS_NewSymbolFromAtom);
     link_symbol(JS_SetGlobalVar);
     link_symbol(JS_ThrowReferenceErrorNotDefined);
@@ -33127,9 +33204,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_ToObject);
     link_symbol(js_add_slow);
     link_symbol(js_binary_arith_slow);
+    link_symbol(js_build_arguments);
+    link_symbol(js_build_mapped_arguments);
     link_symbol(js_build_rest);
     link_symbol(js_closure);
     link_symbol(js_eq_slow);
+    link_symbol(js_import_meta);
     link_symbol(js_poll_interrupts);
     link_symbol(js_operator_typeof);
     link_symbol(js_relational_slow);
