@@ -32761,6 +32761,15 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp++;");
             pc++;
             break;
+        case 0x16: // insert3:none 1 +4,-3
+            dbuf_putstr(&dbuf,
+                "sp[0] = sp[-1];"
+                "sp[-1] = sp[-2];"
+                "sp[-2] = sp[-3];"
+                "sp[-3] = JS_DupValue(ctx, sp[0]);"
+                "sp++;");
+            pc++;
+            break;
         case 0x22: // call:npop 3 +1,-1
         case 0x23: // tail_call:npop 3 +0,-1
             call_argc = get_u16(pc+1);
