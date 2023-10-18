@@ -32745,6 +32745,14 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp += 2;");
             pc++;
             break;
+        case 0x14: // dup3:none 1 +6,-3
+            dbuf_putstr(&dbuf,
+                "sp[0] = JS_DupValue(ctx, sp[-3]);"
+                "sp[1] = JS_DupValue(ctx, sp[-2]);"
+                "sp[2] = JS_DupValue(ctx, sp[-1]);"
+                "sp += 3;");
+            pc++;
+            break;
         case 0x15: // insert2:none 1 +3,-2
             dbuf_putstr(&dbuf,
                 "sp[0] = sp[-1];"
