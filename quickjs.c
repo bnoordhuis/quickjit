@@ -32717,6 +32717,14 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp--;");
             pc++;
             break;
+        case 0x10: // nip1:none 1 +2,-3
+            dbuf_putstr(&dbuf,
+                "JS_FreeValue(ctx, sp[-3]);"
+                "sp[-3] = sp[-2];"
+                "sp[-2] = sp[-1];"
+                "sp--;");
+            pc++;
+            break;
         case 0x11: // dup:none 1 +2,-1
             dbuf_putstr(&dbuf,
                 "sp[0] = JS_DupValue(ctx, sp[-1]);"
