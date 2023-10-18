@@ -32410,6 +32410,7 @@ static const char prolog[] =
 #undef p
     "JSValue (*__JS_AtomToValue)(JSContext *ctx, JSAtom atom, BOOL force_string);"
     "void (*__JS_FreeValue)(JSContext *ctx, JSValue v);"
+    "JSValue (*JS_CallConstructorInternal)(JSContext *ctx, JSValueConst func_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
     "JSValue (*JS_CallInternal)(JSContext *caller_ctx, JSValueConst func_obj, JSValueConst this_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
     "int (*JS_CheckDefineGlobalVar)(JSContext *ctx, JSAtom prop, int flags);"
     "int (*JS_CheckGlobalVar)(JSContext *ctx, JSAtom prop);"
@@ -32884,6 +32885,25 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}");
             pc++;
             break;
+        case 0x21: // call_constructor:npop 3 +1,-2
+            dbuf_printf(&dbuf,
+                "{"
+                "int call_argc = %d;"
+                "JSValue *call_argv = sp - call_argc;"
+                "set_cur_pc(sf, (void *) %p);"
+                "ret_val = JS_CallConstructorInternal(ctx, call_argv[-2],"
+                "                                     call_argv[-1],"
+                "                                     call_argc, call_argv, 0);"
+                "if (unlikely(JS_IsException(ret_val)))"
+                "    goto exception;"
+                "for(int i = -2; i < call_argc; i++)"
+                "    JS_FreeValue(ctx, call_argv[i]);"
+                "sp -= call_argc + 2;"
+                "*sp++ = ret_val;"
+                "}",
+                /*call_argc*/get_u16(pc+1), /*next opcode*/pc+3);
+            pc += 3;
+            break;
         case 0x22: // call:npop 3 +1,-1
         case 0x23: // tail_call:npop 3 +0,-1
             call_argc = get_u16(pc+1);
@@ -33346,6 +33366,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     } while (0)
     link_symbol(__JS_AtomToValue);
     link_symbol(__JS_FreeValue);
+    link_symbol(JS_CallConstructorInternal);
     link_symbol(JS_CallInternal);
     link_symbol(JS_CheckDefineGlobalVar);
     link_symbol(JS_CheckGlobalVar);
