@@ -32824,6 +32824,19 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}");
             pc++;
             break;
+        case 0x1C: // swap2:none 1 +4,-4
+            dbuf_putstr(&dbuf,
+                "{"
+                "JSValue tmp1, tmp2;"
+                "tmp1 = sp[-4];"
+                "tmp2 = sp[-3];"
+                "sp[-4] = sp[-2];"
+                "sp[-3] = sp[-1];"
+                "sp[-2] = tmp1;"
+                "sp[-1] = tmp2;"
+                "}");
+            pc++;
+            break;
         case 0x22: // call:npop 3 +1,-1
         case 0x23: // tail_call:npop 3 +0,-1
             call_argc = get_u16(pc+1);
