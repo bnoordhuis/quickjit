@@ -32426,6 +32426,7 @@ static const char prolog[] =
     "JSValue (*JS_ToObject)(JSContext *ctx, JSValueConst val);"
     "int (*js_add_slow)(JSContext *ctx, JSValue *sp);"
     "int (*js_binary_arith_slow)(JSContext *ctx, JSValue *sp, int op);"
+    "JSValue (*js_build_rest)(JSContext *ctx, int first, int argc, JSValueConst *argv);"
     "JSValue (*js_closure)(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
     "int (*js_eq_slow)(JSContext *ctx, JSValue *sp, BOOL is_neq);"
     "int (*js_poll_interrupts)(JSContext *ctx);"
@@ -32618,6 +32619,14 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "if (unlikely(JS_IsException(sp[-1])))"
                 "    goto exception;");
             pc++;
+            break;
+        case 0x0D: // rest:u16 3 +1,-0
+            dbuf_printf(&dbuf,
+                "*sp++ = js_build_rest(ctx, %d, argc, (JSValueConst *)argv);"
+                "if (unlikely(JS_IsException(sp[-1])))"
+                "    goto exception;",
+                /*first*/get_u16(pc+1));
+            pc += 3;
             break;
         case 0x0E: // drop:none 1 +0,-1
             dbuf_putstr(&dbuf,
@@ -33118,6 +33127,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_ToObject);
     link_symbol(js_add_slow);
     link_symbol(js_binary_arith_slow);
+    link_symbol(js_build_rest);
     link_symbol(js_closure);
     link_symbol(js_eq_slow);
     link_symbol(js_poll_interrupts);
