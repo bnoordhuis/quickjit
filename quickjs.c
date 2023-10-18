@@ -571,6 +571,21 @@ typedef enum JSFunctionKindEnum {
     JS_FUNC_ASYNC_GENERATOR = (JS_FUNC_GENERATOR | JS_FUNC_ASYNC),
 } JSFunctionKindEnum;
 
+#define JITAUX(p)                       \
+    p(struct JitAux {                   \
+        JSValue *stack_buf;             \
+        JSValue *var_buf;               \
+        JSValue *arg_buf;               \
+        JSValue *sp;                    \
+        JSVarRef **var_refs;            \
+        JSStackFrame *sf;               \
+        struct JSFunctionBytecode *b;   \
+    })
+
+#define p(x) x
+JITAUX(p);
+#undef p
+
 typedef struct JSFunctionBytecode {
     JSGCObjectHeader header; /* must come first */
     uint8_t js_mode;
@@ -590,15 +605,10 @@ typedef struct JSFunctionBytecode {
     /* XXX: 4 bits available */
     uint8_t *byte_code_buf; /* (self pointer) */
     int byte_code_len;
-    JSValue *(*jitcode)(JSContext *ctx,
-                        JSValue *sp,
-                        JSValue *arg_buf,
-                        JSValue *var_buf,
-                        JSVarRef **var_refs,
-                        struct JSFunctionBytecode *b,
-                        JSStackFrame *sf,
-                        JSValueConst this_obj,
-                        JSValue *rv);
+    JSValue (*jitcode)(JSContext *caller_ctx, JSValueConst func_obj,
+                       JSValueConst this_obj, JSValueConst new_target,
+                       int argc, JSValue *argv, int flags,
+                       struct JitAux *aux);
     JSAtom func_name;
     JSVarDef *vardefs; /* arguments + local variables (arg_count + var_count) (self pointer) */
     JSClosureVar *closure_var; /* list of variables in the closure (self pointer) */
@@ -16299,7 +16309,17 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
     ctx = b->realm; /* set the current realm */
 
     if (b->jitcode) {
-        sp = b->jitcode(ctx, sp, arg_buf, var_buf, var_refs, b, sf, this_obj, &ret_val);
+        struct JitAux aux = {
+            .var_refs = var_refs,
+            .var_buf = var_buf,
+            .arg_buf = arg_buf,
+            .sf = sf,
+            .sp = sp,
+            .b = b,
+        };
+        ret_val = b->jitcode(ctx, func_obj, this_obj, new_target,
+                             argc, argv, flags, &aux);
+        sp = aux.sp;
         if (JS_IsException(ret_val))
             goto exception;
         // TODO handle b->func_kind != JS_FUNC_NORMAL
@@ -32384,6 +32404,9 @@ static const char prolog[] =
     "typedef struct JSFunctionBytecode JSFunctionBytecode;"
     "typedef struct JSStackFrame JSStackFrame;"
     "typedef struct JSVarRef JSVarRef;"
+#define p(x) #x
+    JITAUX(p) ";"
+#undef p
     "JSValue (*__JS_AtomToValue)(JSContext *ctx, JSAtom atom, BOOL force_string);"
     "void (*__JS_FreeValue)(JSContext *ctx, JSValue v);"
     "JSValue (*JS_CallInternal)(JSContext *caller_ctx, JSValueConst func_obj, JSValueConst this_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
@@ -32454,11 +32477,11 @@ static const char prolog[] =
 
 static const char epilog[] =
     "exception:"
-    "    *rv = JS_UNDEFINED;"
-    "    return sp;"
+    "    aux->sp = sp;"
+    "    return JS_UNDEFINED;"
     "done:"
-    "    *rv = ret_val;"
-    "    return sp;"
+    "    aux->sp = sp;"
+    "    return ret_val;"
     "}";
 
 static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
@@ -32487,8 +32510,17 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         "    void **cur_pc = (void *) sf + %d;"
         "    *cur_pc = pc;"
         "}"
-        "JSValue *jitcode(JSContext *ctx, JSValue *sp, JSValue *arg_buf, JSValue *var_buf, JSVarRef **var_refs, JSFunctionBytecode *b, JSStackFrame *sf, JSValueConst this_obj, JSValue *rv)"
+        "JSValue jitcode(JSContext *ctx, JSValueConst func_obj,"
+        "                JSValueConst this_obj, JSValueConst new_target,"
+        "                int argc, JSValue *argv, int flags,"
+        "                struct JitAux *aux)"
         "{"
+        "    JSVarRef **var_refs = aux->var_refs;"
+        "    JSValue *var_buf = aux->var_buf;"
+        "    JSValue *arg_buf = aux->arg_buf;"
+        "    JSFunctionBytecode *b = aux->b;"
+        "    JSStackFrame *sf = aux->sf;"
+        "    JSValue *sp = aux->sp;"
         "    JSValue ret_val;",
         (int) offsetof(JSFunctionBytecode, cpool),
         (int) offsetof(JSStackFrame, cur_pc));
