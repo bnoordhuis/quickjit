@@ -33076,6 +33076,18 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 /*atom*/get_u32(pc+1), /*flags*/pc[5]);
             pc += 6;
             break;
+        case 0x41: // get_field:atom 5 +1,-1
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue val = JS_GetProperty(ctx, sp[-1], %d);"
+                "if (unlikely(JS_IsException(val)))"
+                "    goto exception;"
+                "JS_FreeValue(ctx, sp[-1]);"
+                "sp[-1] = val;"
+                "}",
+                /*atom*/get_u32(pc+1));
+            pc += 5;
+            break;
         case 0x42: // get_field2:atom 5 +2,-1
             dbuf_printf(&dbuf,
                 "{"
