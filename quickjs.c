@@ -32541,6 +32541,10 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         "    JSValue **pool = (void *) b + %d;"
         "    return (*pool)[i];"
         "}"
+        "static inline JSValue **pvalue(JSVarRef *ref)"
+        "{"
+        "    return (void *) ref + %d;"
+        "}"
         "static inline void set_cur_pc(JSStackFrame *sf, void *pc)"
         "{"
         "    void **cur_pc = (void *) sf + %d;"
@@ -32571,6 +32575,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         "    JSValue *sp = aux->sp;"
         "    JSValue ret_val;",
         (int) offsetof(JSFunctionBytecode, cpool),
+        (int) offsetof(JSVarRef, pvalue),
         (int) offsetof(JSStackFrame, cur_pc),
         (int) offsetof(JSObject, u.func.function_bytecode),
         (int) offsetof(JSObject, u.func.home_object));
@@ -33251,8 +33256,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             idx = get_u16(pc+1);
             dbuf_printf(&dbuf,
                 "{"
-                "JSValue **pvalue = (void *) var_refs[%d] + %d;"
-                "JSValue val = **pvalue;"
+                "JSValue val = **pvalue(var_refs[%d]);"
                 "if (unlikely(JS_IsUninitialized(val))) {"
                 "    JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, TRUE);"
                 "    goto exception;"
@@ -33260,9 +33264,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[0] = JS_DupValue(ctx, val);"
                 "sp++;"
                 "}",
-                idx,
-                (int) offsetof(JSVarRef, pvalue),
-                idx);
+                idx, idx);
             pc += 3;
             break;
         case 0x68: // close_loc:loc 3 +0,-0
@@ -33480,6 +33482,13 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0xD9: // set_arg2:none_arg 1 +1,-1
         case 0xDA: // set_arg3:none_arg 1 +1,-1
             dbuf_printf(&dbuf, "set_value(ctx, &arg_buf[%d], JS_DupValue(ctx, sp[-1]));", op-0xD7);
+            pc++;
+            break;
+        case 0xDB: // get_var_ref0:none_var_ref 1 +1,-0
+        case 0xDC: // get_var_ref1:none_var_ref 1 +1,-0
+        case 0xDD: // get_var_ref2:none_var_ref 1 +1,-0
+        case 0xDE: // get_var_ref3:none_var_ref 1 +1,-0
+            dbuf_printf(&dbuf, "*sp++ = JS_DupValue(ctx, **pvalue(var_refs[%d]));", op-0xDB);
             pc++;
             break;
         case 0xE8: // if_false8:label8 2 +0,-1
