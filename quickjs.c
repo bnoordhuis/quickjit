@@ -33074,6 +33074,18 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 /*atom*/get_u32(pc+1), op-0x37);
             pc += 5;
             break;
+        case 0x39: // put_var:atom 5 +0,-1
+        case 0x3A: // put_var_init:atom 5 +0,-1
+            dbuf_printf(&dbuf,
+                "{"
+                "int ret = JS_SetGlobalVar(ctx, %d, sp[-1], %d);"
+                "sp--;"
+                "if (unlikely(ret < 0))"
+                "    goto exception;"
+                "}",
+                /*atom*/get_u32(pc+1), op-0x39);
+            pc += 5;
+            break;
         case 0x3B: // put_var_strict:atom 5 +0,-2
             idx = /*atom*/get_u32(pc+1);
             dbuf_printf(&dbuf,
