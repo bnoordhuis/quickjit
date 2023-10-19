@@ -32346,6 +32346,7 @@ static int add_module_variables(JSContext *ctx, JSFunctionDef *fd)
 }
 
 static const char prolog[] =
+    "#define JS_ATOM_TAG_INT     (1U << 31)\n"
     "#define BOOL int\n"
     "#define JS_BOOL int\n"
     "#define likely(x)           (x)\n"
@@ -32416,9 +32417,11 @@ static const char prolog[] =
     "int (*JS_CheckGlobalVar)(JSContext *ctx, JSAtom prop);"
     "int (*JS_DefineGlobalFunction)(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
     "int (*JS_DefineGlobalVar)(JSContext *ctx, JSAtom prop, int def_flags);"
+    "int (*JS_DefinePropertyValue)(JSContext *ctx, JSValueConst this_obj, JSAtom prop, JSValue val, int flags);"
     "JSValue (*JS_DupValue)(JSContext *ctx, JSValue v);"
     "JSValue (*JS_GetGlobalVar)(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "JSValue (*JS_GetProperty)(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
+    "JSValue (*JS_NewArray)(JSContext *ctx);"
     "JSValue (*JS_NewObject)(JSContext *ctx);"
     "JSValue (*JS_NewObjectProto)(JSContext *ctx, JSValueConst proto);"
     "JSValue (*JS_NewSymbolFromAtom)(JSContext *ctx, JSAtom descr, int atom_type);"
@@ -32440,6 +32443,10 @@ static const char prolog[] =
     "int (*js_relational_slow)(JSContext *ctx, JSValue *sp, int op);"
     "int (*js_strict_eq_slow)(JSContext *ctx, JSValue *sp, BOOL is_neq);"
     "void (*set_value)(JSContext *ctx, JSValue *pval, JSValue new_val);"
+    "static inline JSAtom __JS_AtomFromUInt32(uint32_t v)"
+    "{"
+    "    return v | JS_ATOM_TAG_INT;"
+    "}"
     "static inline JSValue JS_AtomToString(JSContext *ctx, JSAtom atom)"
     "{"
     "    return __JS_AtomToValue(ctx, atom, TRUE);"
@@ -32961,6 +32968,28 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_putstr(&dbuf, "}");
             pc += 3;
             break;
+        case 0x26: // array_from:npop 3 +1,-0
+            dbuf_printf(&dbuf,
+                "{"
+                "int call_argc = %d;"
+                "ret_val = JS_NewArray(ctx);"
+                "if (unlikely(JS_IsException(ret_val)))"
+                "    goto exception;"
+                "JSValue *call_argv = sp - call_argc;"
+                "for(int i = 0; i < call_argc; i++) {"
+                "    int ret = JS_DefinePropertyValue(ctx, ret_val, __JS_AtomFromUInt32(i), call_argv[i], %d);"
+                "    call_argv[i] = JS_UNDEFINED;"
+                "    if (ret < 0) {"
+                "        JS_FreeValue(ctx, ret_val);"
+                "        goto exception;"
+                "    }"
+                "}"
+                "sp -= call_argc;"
+                "*sp++ = ret_val;"
+                "}",
+                get_u16(pc+1), JS_PROP_C_W_E|JS_PROP_THROW);
+            pc += 3;
+            break;
         case 0x28: // return:none 1 +0,-1
             dbuf_putstr(&dbuf, "ret_val = *--sp;");
             dbuf_putstr(&dbuf, "goto done;");
@@ -33372,9 +33401,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_CheckGlobalVar);
     link_symbol(JS_DefineGlobalFunction);
     link_symbol(JS_DefineGlobalVar);
+    link_symbol(JS_DefinePropertyValue);
     link_symbol(JS_DupValue);
     link_symbol(JS_GetGlobalVar);
     link_symbol(JS_GetProperty);
+    link_symbol(JS_NewArray);
     link_symbol(JS_NewObject);
     link_symbol(JS_NewObjectProto);
     link_symbol(JS_NewSymbolFromAtom);
