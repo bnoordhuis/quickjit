@@ -32440,6 +32440,7 @@ static const char prolog[] =
     "JSValue (*js_build_mapped_arguments)(JSContext *ctx, int argc, JSValueConst *argv, JSStackFrame *sf, int arg_count);"
     "JSValue (*js_build_rest)(JSContext *ctx, int first, int argc, JSValueConst *argv);"
     "JSValue (*js_closure)(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
+    "int (*js_op_define_class)(JSContext *ctx, JSValue *sp, JSAtom class_name, int class_flags, JSVarRef **cur_var_refs, JSStackFrame *sf, BOOL is_computed_name);"
     "int (*js_eq_slow)(JSContext *ctx, JSValue *sp, BOOL is_neq);"
     "JSValue (*js_function_apply)(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic);"
     "JSValue (*js_import_meta)(JSContext *ctx);"
@@ -33134,6 +33135,16 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 /*atom*/get_u32(pc+1));
             pc += 5;
             break;
+        case 0x56: // define_class:atom_u8 6 +2,-2
+        case 0x57: // define_class_computed:atom_u8 6 +3,-3
+            dbuf_printf(&dbuf,
+                "if (js_op_define_class(ctx, sp, %d, %d, var_refs, sf, %d) < 0)"
+                "    goto exception;",
+                /*atom*/get_u32(pc+1),
+                /*class_flags*/pc[5],
+                op == OP_define_class_computed);
+            pc += 6;
+            break;
         case 0x61: // set_loc_uninitialized:loc 3 +0,-0
             idx = get_u16(pc+1);
             dbuf_printf(&dbuf, "set_value(ctx, &var_buf[%d], JS_UNINITIALIZED);", idx);
@@ -33488,6 +33499,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(js_build_mapped_arguments);
     link_symbol(js_build_rest);
     link_symbol(js_closure);
+    link_symbol(js_op_define_class);
     link_symbol(js_eq_slow);
     link_symbol(js_function_apply);
     link_symbol(js_import_meta);
