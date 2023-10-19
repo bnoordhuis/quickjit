@@ -33193,7 +33193,8 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             idx = get_u16(pc+1);
             dbuf_printf(&dbuf,
                 "{"
-                "JSValue val = *var_refs[%d]->pvalue;"
+                "JSValue **pvalue = (void *) var_refs[%d] + %d;"
+                "JSValue val = **pvalue;"
                 "if (unlikely(JS_IsUninitialized(val))) {"
                 "    JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, TRUE);"
                 "    goto exception;"
@@ -33201,7 +33202,9 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[0] = JS_DupValue(ctx, val);"
                 "sp++;"
                 "}",
-                idx, idx);
+                idx,
+                (int) offsetof(JSVarRef, pvalue),
+                idx);
             pc += 3;
             break;
         case 0x68: // close_loc:loc 3 +0,-0
