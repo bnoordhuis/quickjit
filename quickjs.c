@@ -32412,51 +32412,51 @@ static const char prolog[] =
 #define p(x) #x
     JITAUX(p) ";"
 #undef p
-    "JSValue (*__JS_AtomToValue)(JSContext *ctx, JSAtom atom, BOOL force_string);"
-    "void (*__JS_FreeValue)(JSContext *ctx, JSValue v);"
-    "int (*JS_AddBrand)(JSContext *ctx, JSValueConst obj, JSValueConst home_obj);"
-    "JSValue (*JS_CallConstructorInternal)(JSContext *ctx, JSValueConst func_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
-    "JSValue (*JS_CallInternal)(JSContext *caller_ctx, JSValueConst func_obj, JSValueConst this_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
-    "int (*JS_CheckBrand)(JSContext *ctx, JSValueConst obj, JSValueConst func);"
-    "int (*JS_CheckDefineGlobalVar)(JSContext *ctx, JSAtom prop, int flags);"
-    "int (*JS_CheckGlobalVar)(JSContext *ctx, JSAtom prop);"
-    "int (*JS_DefineGlobalFunction)(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
-    "int (*JS_DefineGlobalVar)(JSContext *ctx, JSAtom prop, int def_flags);"
-    "int (*JS_DefinePropertyValue)(JSContext *ctx, JSValueConst this_obj, JSAtom prop, JSValue val, int flags);"
-    "JSValue (*JS_DupValue)(JSContext *ctx, JSValue v);"
-    "JSValue (*JS_GetGlobalVar)(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
-    "JSValue (*JS_GetProperty)(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
-    "JSValue (*JS_NewArray)(JSContext *ctx);"
-    "JSValue (*JS_NewObject)(JSContext *ctx);"
-    "JSValue (*JS_NewObjectProto)(JSContext *ctx, JSValueConst proto);"
-    "JSValue (*JS_NewSymbolFromAtom)(JSContext *ctx, JSAtom descr, int atom_type);"
-    "int (*JS_SetGlobalVar)(JSContext *ctx, JSAtom prop, JSValue val, int flag);"
-    "JSValue (*JS_Throw)(JSContext *ctx, JSValue obj);"
-    "JSValue (*JS_ThrowReferenceError)(JSContext *ctx, const char *fmt, ...);"
-    "JSValue (*JS_ThrowReferenceErrorNotDefined)(JSContext *ctx, JSAtom name);"
-    "JSValue (*JS_ThrowReferenceErrorUninitialized)(JSContext *ctx, JSAtom name);"
-    "JSValue (*JS_ThrowReferenceErrorUninitialized2)(JSContext *ctx, JSFunctionBytecode *b, int idx, BOOL is_ref);"
-    "JSValue (*JS_ThrowSyntaxErrorVarRedeclaration)(JSContext *ctx, JSAtom prop);"
-    "JSValue (*JS_ThrowTypeError)(JSContext *ctx, const char *fmt, ...);"
-    "int (*JS_ThrowTypeErrorReadOnly)(JSContext *ctx, int flags, JSAtom atom);"
-    "int (*JS_ToBoolFree)(JSContext *ctx, JSValue val);"
-    "JSValue (*JS_ToObject)(JSContext *ctx, JSValueConst val);"
-    "void (*close_lexical_var)(JSContext *ctx, JSStackFrame *sf, int idx, int is_arg);"
-    "int (*js_add_slow)(JSContext *ctx, JSValue *sp);"
-    "int (*js_binary_arith_slow)(JSContext *ctx, JSValue *sp, int op);"
-    "JSValue (*js_build_arguments)(JSContext *ctx, int argc, JSValueConst *argv);"
-    "JSValue (*js_build_mapped_arguments)(JSContext *ctx, int argc, JSValueConst *argv, JSStackFrame *sf, int arg_count);"
-    "JSValue (*js_build_rest)(JSContext *ctx, int first, int argc, JSValueConst *argv);"
-    "JSValue (*js_closure)(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
-    "int (*js_op_define_class)(JSContext *ctx, JSValue *sp, JSAtom class_name, int class_flags, JSVarRef **cur_var_refs, JSStackFrame *sf, BOOL is_computed_name);"
-    "int (*js_eq_slow)(JSContext *ctx, JSValue *sp, BOOL is_neq);"
-    "JSValue (*js_function_apply)(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic);"
-    "JSValue (*js_import_meta)(JSContext *ctx);"
-    "int (*js_poll_interrupts)(JSContext *ctx);"
-    "int (*js_operator_typeof)(JSContext *ctx, JSValueConst op1);"
-    "int (*js_relational_slow)(JSContext *ctx, JSValue *sp, int op);"
-    "int (*js_strict_eq_slow)(JSContext *ctx, JSValue *sp, BOOL is_neq);"
-    "void (*set_value)(JSContext *ctx, JSValue *pval, JSValue new_val);"
+    "JSValue __JS_AtomToValue(JSContext *ctx, JSAtom atom, BOOL force_string);"
+    "void __JS_FreeValue(JSContext *ctx, JSValue v);"
+    "int JS_AddBrand(JSContext *ctx, JSValueConst obj, JSValueConst home_obj);"
+    "JSValue JS_CallConstructorInternal(JSContext *ctx, JSValueConst func_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
+    "JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj, JSValueConst this_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
+    "int JS_CheckBrand(JSContext *ctx, JSValueConst obj, JSValueConst func);"
+    "int JS_CheckDefineGlobalVar(JSContext *ctx, JSAtom prop, int flags);"
+    "int JS_CheckGlobalVar(JSContext *ctx, JSAtom prop);"
+    "int JS_DefineGlobalFunction(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
+    "int JS_DefineGlobalVar(JSContext *ctx, JSAtom prop, int def_flags);"
+    "int JS_DefinePropertyValue(JSContext *ctx, JSValueConst this_obj, JSAtom prop, JSValue val, int flags);"
+    "JSValue JS_DupValue(JSContext *ctx, JSValue v);"
+    "JSValue JS_GetGlobalVar(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
+    "JSValue JS_GetProperty(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
+    "JSValue JS_NewArray(JSContext *ctx);"
+    "JSValue JS_NewObject(JSContext *ctx);"
+    "JSValue JS_NewObjectProto(JSContext *ctx, JSValueConst proto);"
+    "JSValue JS_NewSymbolFromAtom(JSContext *ctx, JSAtom descr, int atom_type);"
+    "int JS_SetGlobalVar(JSContext *ctx, JSAtom prop, JSValue val, int flag);"
+    "JSValue JS_Throw(JSContext *ctx, JSValue obj);"
+    "JSValue JS_ThrowReferenceError(JSContext *ctx, const char *fmt, ...);"
+    "JSValue JS_ThrowReferenceErrorNotDefined(JSContext *ctx, JSAtom name);"
+    "JSValue JS_ThrowReferenceErrorUninitialized(JSContext *ctx, JSAtom name);"
+    "JSValue JS_ThrowReferenceErrorUninitialized2(JSContext *ctx, JSFunctionBytecode *b, int idx, BOOL is_ref);"
+    "JSValue JS_ThrowSyntaxErrorVarRedeclaration(JSContext *ctx, JSAtom prop);"
+    "JSValue JS_ThrowTypeError(JSContext *ctx, const char *fmt, ...);"
+    "int JS_ThrowTypeErrorReadOnly(JSContext *ctx, int flags, JSAtom atom);"
+    "int JS_ToBoolFree(JSContext *ctx, JSValue val);"
+    "JSValue JS_ToObject(JSContext *ctx, JSValueConst val);"
+    "void close_lexical_var(JSContext *ctx, JSStackFrame *sf, int idx, int is_arg);"
+    "int js_add_slow(JSContext *ctx, JSValue *sp);"
+    "int js_binary_arith_slow(JSContext *ctx, JSValue *sp, int op);"
+    "JSValue js_build_arguments(JSContext *ctx, int argc, JSValueConst *argv);"
+    "JSValue js_build_mapped_arguments(JSContext *ctx, int argc, JSValueConst *argv, JSStackFrame *sf, int arg_count);"
+    "JSValue js_build_rest(JSContext *ctx, int first, int argc, JSValueConst *argv);"
+    "JSValue js_closure(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
+    "int js_op_define_class(JSContext *ctx, JSValue *sp, JSAtom class_name, int class_flags, JSVarRef **cur_var_refs, JSStackFrame *sf, BOOL is_computed_name);"
+    "int js_eq_slow(JSContext *ctx, JSValue *sp, BOOL is_neq);"
+    "JSValue js_function_apply(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic);"
+    "JSValue js_import_meta(JSContext *ctx);"
+    "int js_poll_interrupts(JSContext *ctx);"
+    "int js_operator_typeof(JSContext *ctx, JSValueConst op1);"
+    "int js_relational_slow(JSContext *ctx, JSValue *sp, int op);"
+    "int js_strict_eq_slow(JSContext *ctx, JSValue *sp, BOOL is_neq);"
+    "void set_value(JSContext *ctx, JSValue *pval, JSValue new_val);"
     "static inline JSAtom __JS_AtomFromUInt32(uint32_t v)"
     "{"
     "    return v | JS_ATOM_TAG_INT;"
@@ -33564,15 +33564,8 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         goto fail;
     if (-1 == tcc_compile_string(s, (char *)dbuf.buf))
         goto fail;
-    if (-1 == tcc_relocate(s, TCC_RELOCATE_AUTO))
-        goto fail;
 
-#define link_symbol(name) \
-    do { \
-        p = tcc_get_symbol(s, #name); \
-        assert(p); \
-        *p = (void *) &name; \
-    } while (0)
+#define link_symbol(name) tcc_add_symbol(s, #name, (void *) &name)
     link_symbol(__JS_AtomToValue);
     link_symbol(__JS_FreeValue);
     link_symbol(JS_AddBrand);
@@ -33619,6 +33612,9 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(js_strict_eq_slow);
     link_symbol(set_value);
 #undef link_symbol
+
+    if (-1 == tcc_relocate(s, TCC_RELOCATE_AUTO))
+        goto fail;
 
     b->jitcode = tcc_get_symbol(s, "jitcode");
     dbuf_free(&dbuf);
