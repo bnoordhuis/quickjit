@@ -32416,6 +32416,7 @@ static const char prolog[] =
     "void (*__JS_FreeValue)(JSContext *ctx, JSValue v);"
     "JSValue (*JS_CallConstructorInternal)(JSContext *ctx, JSValueConst func_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
     "JSValue (*JS_CallInternal)(JSContext *caller_ctx, JSValueConst func_obj, JSValueConst this_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
+    "int (*JS_CheckBrand)(JSContext *ctx, JSValueConst obj, JSValueConst func);"
     "int (*JS_CheckDefineGlobalVar)(JSContext *ctx, JSAtom prop, int flags);"
     "int (*JS_CheckGlobalVar)(JSContext *ctx, JSAtom prop);"
     "int (*JS_DefineGlobalFunction)(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
@@ -33051,6 +33052,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}");
             pc++;
             break;
+        case 0x2C: // check_brand:none 1 +2,-2
+            dbuf_putstr(&dbuf,
+                "if (JS_CheckBrand(ctx, sp[-2], sp[-1]) < 0)"
+                "    goto exception;");
+            pc++;
+            break;
         case 0x36: // check_var:atom 5 +1,-0
             dbuf_printf(&dbuf,
                 "{"
@@ -33519,6 +33526,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(__JS_FreeValue);
     link_symbol(JS_CallConstructorInternal);
     link_symbol(JS_CallInternal);
+    link_symbol(JS_CheckBrand);
     link_symbol(JS_CheckDefineGlobalVar);
     link_symbol(JS_CheckGlobalVar);
     link_symbol(JS_DefineGlobalFunction);
