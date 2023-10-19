@@ -580,6 +580,7 @@ typedef enum JSFunctionKindEnum {
         JSVarRef **var_refs;            \
         JSStackFrame *sf;               \
         JSObject *p;                    \
+        JSContext *caller_ctx;          \
     })
 
 #define p(x) x
@@ -605,7 +606,7 @@ typedef struct JSFunctionBytecode {
     /* XXX: 4 bits available */
     uint8_t *byte_code_buf; /* (self pointer) */
     int byte_code_len;
-    JSValue (*jitcode)(JSContext *caller_ctx, JSValueConst func_obj,
+    JSValue (*jitcode)(JSContext *ctx, JSValueConst func_obj,
                        JSValueConst this_obj, JSValueConst new_target,
                        int argc, JSValue *argv, int flags,
                        struct JitAux *aux);
@@ -16310,6 +16311,7 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
 
     if (b->jitcode) {
         struct JitAux aux = {
+            .caller_ctx = caller_ctx,
             .var_refs = var_refs,
             .var_buf = var_buf,
             .arg_buf = arg_buf,
@@ -32380,6 +32382,7 @@ static const char prolog[] =
     "};"
     "enum {"
     "    JS_TAG_FIRST       = -11,"
+    "    JS_TAG_OBJECT      = -1,"
     "    JS_TAG_INT         = 0,"
     "    JS_TAG_BOOL        = 1,"
     "    JS_TAG_NULL        = 2,"
@@ -32428,6 +32431,7 @@ static const char prolog[] =
     "int (*JS_SetGlobalVar)(JSContext *ctx, JSAtom prop, JSValue val, int flag);"
     "JSValue (*JS_ThrowReferenceErrorNotDefined)(JSContext *ctx, JSAtom name);"
     "JSValue (*JS_ThrowReferenceErrorUninitialized2)(JSContext *ctx, JSFunctionBytecode *b, int idx, BOOL is_ref);"
+    "JSValue (*JS_ThrowTypeError)(JSContext *ctx, const char *fmt, ...);"
     "int (*JS_ToBoolFree)(JSContext *ctx, JSValue val);"
     "JSValue (*JS_ToObject)(JSContext *ctx, JSValueConst val);"
     "int (*js_add_slow)(JSContext *ctx, JSValue *sp);"
@@ -32468,6 +32472,14 @@ static const char prolog[] =
     "static inline JS_BOOL JS_IsException(JSValueConst v)"
     "{"
     "    return js_unlikely(JS_VALUE_GET_TAG(v) == JS_TAG_EXCEPTION);"
+    "}"
+    "static inline JS_BOOL JS_IsObject(JSValueConst v)"
+    "{"
+    "    return JS_VALUE_GET_TAG(v) == JS_TAG_OBJECT;"
+    "}"
+    "static inline JS_BOOL JS_IsUndefined(JSValueConst v)"
+    "{"
+    "    return JS_VALUE_GET_TAG(v) == JS_TAG_UNDEFINED;"
     "}"
     "static js_force_inline JSValue JS_NewBool(JSContext *ctx, JS_BOOL val)"
     "{"
@@ -32540,6 +32552,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         "                int argc, JSValue *argv, int flags,"
         "                struct JitAux *aux)"
         "{"
+        "    JSContext *caller_ctx = aux->caller_ctx;"
         "    JSVarRef **var_refs = aux->var_refs;"
         "    JSValue *var_buf = aux->var_buf;"
         "    JSValue *arg_buf = aux->arg_buf;"
@@ -33014,6 +33027,20 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_putstr(&dbuf, "goto done;");
             pc++;
             break;
+        case 0x2A: // check_ctor_return:none 1 +2,-1
+            dbuf_putstr(&dbuf,
+                "if (!JS_IsObject(sp[-1])) {"
+                "    if (!JS_IsUndefined(sp[-1])) {"
+                "        JS_ThrowTypeError(caller_ctx, \"derived class constructor must return an object or undefined\");"
+                "        goto exception;"
+                "    }"
+                "    sp[0] = JS_TRUE;"
+                "} else {"
+                "    sp[0] = JS_FALSE;"
+                "}"
+                "sp++;");
+            pc++;
+            break;
         case 0x36: // check_var:atom 5 +1,-0
             dbuf_printf(&dbuf,
                 "{"
@@ -33438,6 +33465,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_SetGlobalVar);
     link_symbol(JS_ThrowReferenceErrorNotDefined);
     link_symbol(JS_ThrowReferenceErrorUninitialized2);
+    link_symbol(JS_ThrowTypeError);
     link_symbol(JS_ToBoolFree);
     link_symbol(JS_ToObject);
     link_symbol(js_add_slow);
