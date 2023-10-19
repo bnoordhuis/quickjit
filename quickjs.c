@@ -32493,7 +32493,7 @@ static const char prolog[] =
 static const char epilog[] =
     "exception:"
     "    aux->sp = sp;"
-    "    return JS_UNDEFINED;"
+    "    return JS_EXCEPTION;"
     "done:"
     "    aux->sp = sp;"
     "    return ret_val;"
