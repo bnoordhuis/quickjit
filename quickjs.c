@@ -32414,6 +32414,7 @@ static const char prolog[] =
 #undef p
     "JSValue (*__JS_AtomToValue)(JSContext *ctx, JSAtom atom, BOOL force_string);"
     "void (*__JS_FreeValue)(JSContext *ctx, JSValue v);"
+    "int (*JS_AddBrand)(JSContext *ctx, JSValueConst obj, JSValueConst home_obj);"
     "JSValue (*JS_CallConstructorInternal)(JSContext *ctx, JSValueConst func_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
     "JSValue (*JS_CallInternal)(JSContext *caller_ctx, JSValueConst func_obj, JSValueConst this_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
     "int (*JS_CheckBrand)(JSContext *ctx, JSValueConst obj, JSValueConst func);"
@@ -33058,6 +33059,15 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    goto exception;");
             pc++;
             break;
+        case 0x2D: // add_brand:none 1 +0,-2
+            dbuf_putstr(&dbuf,
+                "if (JS_AddBrand(ctx, sp[-2], sp[-1]) < 0)"
+                "    goto exception;"
+                "JS_FreeValue(ctx, sp[-2]);"
+                "JS_FreeValue(ctx, sp[-1]);"
+                "sp -= 2;");
+            pc++;
+            break;
         case 0x36: // check_var:atom 5 +1,-0
             dbuf_printf(&dbuf,
                 "{"
@@ -33524,6 +33534,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     } while (0)
     link_symbol(__JS_AtomToValue);
     link_symbol(__JS_FreeValue);
+    link_symbol(JS_AddBrand);
     link_symbol(JS_CallConstructorInternal);
     link_symbol(JS_CallInternal);
     link_symbol(JS_CheckBrand);
