@@ -33498,6 +33498,13 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_printf(&dbuf, "set_value(ctx, *pvalue(var_refs[%d]), *--sp);", op-0xDF);
             pc++;
             break;
+        case 0xE3: // set_var_ref0:none_var_ref 1 +1,-1
+        case 0xE4: // set_var_ref1:none_var_ref 1 +1,-1
+        case 0xE5: // set_var_ref2:none_var_ref 1 +1,-1
+        case 0xE6: // set_var_ref3:none_var_ref 1 +1,-1
+            dbuf_printf(&dbuf, "set_value(ctx, *pvalue(var_refs[%d]), JS_DupValue(ctx, sp[-1]));", op-0xE3);
+            pc++;
+            break;
         case 0xE8: // if_false8:label8 2 +0,-1
         case 0xE9: // if_true8:label8 2 +0,-1
             idx = idx + 1 + (int8_t)pc[1];
