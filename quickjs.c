@@ -32431,6 +32431,7 @@ static const char prolog[] =
     "JSValue (*JS_NewObjectProto)(JSContext *ctx, JSValueConst proto);"
     "JSValue (*JS_NewSymbolFromAtom)(JSContext *ctx, JSAtom descr, int atom_type);"
     "int (*JS_SetGlobalVar)(JSContext *ctx, JSAtom prop, JSValue val, int flag);"
+    "JSValue (*JS_Throw)(JSContext *ctx, JSValue obj);"
     "JSValue (*JS_ThrowReferenceErrorNotDefined)(JSContext *ctx, JSAtom name);"
     "JSValue (*JS_ThrowReferenceErrorUninitialized2)(JSContext *ctx, JSFunctionBytecode *b, int idx, BOOL is_ref);"
     "JSValue (*JS_ThrowTypeError)(JSContext *ctx, const char *fmt, ...);"
@@ -33068,6 +33069,10 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp -= 2;");
             pc++;
             break;
+        case 0x2F: // throw:none 1 +0,-1
+            dbuf_putstr(&dbuf, "JS_Throw(ctx, *--sp);");
+            pc++;
+            break;
         case 0x36: // check_var:atom 5 +1,-0
             dbuf_printf(&dbuf,
                 "{"
@@ -33551,6 +33556,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_NewObjectProto);
     link_symbol(JS_NewSymbolFromAtom);
     link_symbol(JS_SetGlobalVar);
+    link_symbol(JS_Throw);
     link_symbol(JS_ThrowReferenceErrorNotDefined);
     link_symbol(JS_ThrowReferenceErrorUninitialized2);
     link_symbol(JS_ThrowTypeError);
