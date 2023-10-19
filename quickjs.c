@@ -32437,6 +32437,7 @@ static const char prolog[] =
     "JSValue (*js_build_rest)(JSContext *ctx, int first, int argc, JSValueConst *argv);"
     "JSValue (*js_closure)(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
     "int (*js_eq_slow)(JSContext *ctx, JSValue *sp, BOOL is_neq);"
+    "JSValue (*js_function_apply)(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic);"
     "JSValue (*js_import_meta)(JSContext *ctx);"
     "int (*js_poll_interrupts)(JSContext *ctx);"
     "int (*js_operator_typeof)(JSContext *ctx, JSValueConst op1);"
@@ -32990,6 +32991,19 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 get_u16(pc+1), JS_PROP_C_W_E|JS_PROP_THROW);
             pc += 3;
             break;
+        case 0x27: // apply:u16 3 +1,-3
+            dbuf_printf(&dbuf,
+                "ret_val = js_function_apply(ctx, sp[-3], 2, (JSValueConst *)&sp[-2], %d);"
+                "if (unlikely(JS_IsException(ret_val)))"
+                "    goto exception;"
+                "JS_FreeValue(ctx, sp[-3]);"
+                "JS_FreeValue(ctx, sp[-2]);"
+                "JS_FreeValue(ctx, sp[-1]);"
+                "sp -= 3;"
+                "*sp++ = ret_val;",
+                /*magic*/get_u16(pc+1));
+            pc += 3;
+            break;
         case 0x28: // return:none 1 +0,-1
             dbuf_putstr(&dbuf, "ret_val = *--sp;");
             dbuf_putstr(&dbuf, "goto done;");
@@ -33421,6 +33435,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(js_build_rest);
     link_symbol(js_closure);
     link_symbol(js_eq_slow);
+    link_symbol(js_function_apply);
     link_symbol(js_import_meta);
     link_symbol(js_poll_interrupts);
     link_symbol(js_operator_typeof);
