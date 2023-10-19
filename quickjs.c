@@ -33041,6 +33041,14 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp++;");
             pc++;
             break;
+        case 0x2B: // check_ctor:none 1 +0,-0
+            dbuf_putstr(&dbuf,
+                "if (JS_IsUndefined(new_target)) {"
+                "    JS_ThrowTypeError(ctx, \"class constructors must be invoked with 'new'\");"
+                "    goto exception;"
+                "}");
+            pc++;
+            break;
         case 0x36: // check_var:atom 5 +1,-0
             dbuf_printf(&dbuf,
                 "{"
