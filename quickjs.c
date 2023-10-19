@@ -33176,6 +33176,21 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 idx, idx, pc, idx);
             pc += 3;
             break;
+        case 0x65: // get_var_ref_check:var_ref 3 +1,-0
+            idx = get_u16(pc+1);
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue val = *var_refs[%d]->pvalue;"
+                "if (unlikely(JS_IsUninitialized(val))) {"
+                "    JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, TRUE);"
+                "    goto exception;"
+                "}"
+                "sp[0] = JS_DupValue(ctx, val);"
+                "sp++;"
+                "}",
+                idx, idx);
+            pc += 3;
+            break;
         case 0x97: // typeof:none 1 +1,-1
             dbuf_putstr(&dbuf,
                 "{"
