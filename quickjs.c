@@ -32434,6 +32434,7 @@ static const char prolog[] =
     "JSValue (*JS_ThrowTypeError)(JSContext *ctx, const char *fmt, ...);"
     "int (*JS_ToBoolFree)(JSContext *ctx, JSValue val);"
     "JSValue (*JS_ToObject)(JSContext *ctx, JSValueConst val);"
+    "void (*close_lexical_var)(JSContext *ctx, JSStackFrame *sf, int idx, int is_arg);"
     "int (*js_add_slow)(JSContext *ctx, JSValue *sp);"
     "int (*js_binary_arith_slow)(JSContext *ctx, JSValue *sp, int op);"
     "JSValue (*js_build_arguments)(JSContext *ctx, int argc, JSValueConst *argv);"
@@ -33191,6 +33192,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 idx, idx);
             pc += 3;
             break;
+        case 0x68: // close_loc:loc 3 +0,-0
+            dbuf_printf(&dbuf,
+                "close_lexical_var(ctx, sf, %d, FALSE);",
+                get_u16(pc+1));
+            pc += 3;
+            break;
         case 0x97: // typeof:none 1 +1,-1
             dbuf_putstr(&dbuf,
                 "{"
@@ -33508,6 +33515,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_ThrowTypeError);
     link_symbol(JS_ToBoolFree);
     link_symbol(JS_ToObject);
+    link_symbol(close_lexical_var);
     link_symbol(js_add_slow);
     link_symbol(js_binary_arith_slow);
     link_symbol(js_build_arguments);
