@@ -32432,9 +32432,13 @@ static const char prolog[] =
     "JSValue (*JS_NewSymbolFromAtom)(JSContext *ctx, JSAtom descr, int atom_type);"
     "int (*JS_SetGlobalVar)(JSContext *ctx, JSAtom prop, JSValue val, int flag);"
     "JSValue (*JS_Throw)(JSContext *ctx, JSValue obj);"
+    "JSValue (*JS_ThrowReferenceError)(JSContext *ctx, const char *fmt, ...);"
     "JSValue (*JS_ThrowReferenceErrorNotDefined)(JSContext *ctx, JSAtom name);"
+    "JSValue (*JS_ThrowReferenceErrorUninitialized)(JSContext *ctx, JSAtom name);"
     "JSValue (*JS_ThrowReferenceErrorUninitialized2)(JSContext *ctx, JSFunctionBytecode *b, int idx, BOOL is_ref);"
+    "JSValue (*JS_ThrowSyntaxErrorVarRedeclaration)(JSContext *ctx, JSAtom prop);"
     "JSValue (*JS_ThrowTypeError)(JSContext *ctx, const char *fmt, ...);"
+    "int (*JS_ThrowTypeErrorReadOnly)(JSContext *ctx, int flags, JSAtom atom);"
     "int (*JS_ToBoolFree)(JSContext *ctx, JSValue val);"
     "JSValue (*JS_ToObject)(JSContext *ctx, JSValueConst val);"
     "void (*close_lexical_var)(JSContext *ctx, JSStackFrame *sf, int idx, int is_arg);"
@@ -33073,6 +33077,38 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_putstr(&dbuf, "JS_Throw(ctx, *--sp);");
             pc++;
             break;
+        case 0x30: // throw_error:atom_u8 6 +0,-0
+            idx = pc[5];
+            switch (idx) {
+            case JS_THROW_VAR_RO:
+                dbuf_printf(&dbuf,
+                    "JS_ThrowTypeErrorReadOnly(ctx, %d, %d);",
+                    /*flags*/JS_PROP_THROW,
+                    /*atom*/get_u32(pc+1));
+                break;
+            case JS_THROW_VAR_REDECL:
+                dbuf_printf(&dbuf,
+                    "JS_ThrowSyntaxErrorVarRedeclaration(ctx, %d);",
+                    /*atom*/get_u32(pc+1));
+                break;
+            case JS_THROW_VAR_UNINITIALIZED:
+                dbuf_printf(&dbuf,
+                    "JS_ThrowReferenceErrorUninitialized(ctx, %d);",
+                    /*atom*/get_u32(pc+1));
+                break;
+            case JS_THROW_ERROR_DELETE_SUPER:
+                dbuf_putstr(&dbuf,
+                    "JS_ThrowReferenceError(ctx, \"unsupported reference to 'super'\");");
+                break;
+            case JS_THROW_ERROR_ITERATOR_THROW:
+                dbuf_putstr(&dbuf,
+                    "JS_ThrowTypeError(ctx, \"iterator does not have a throw method\");");
+                break;
+            default:
+                abort();
+            }
+            pc += 6;
+            break;
         case 0x36: // check_var:atom 5 +1,-0
             dbuf_printf(&dbuf,
                 "{"
@@ -33557,9 +33593,13 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_NewSymbolFromAtom);
     link_symbol(JS_SetGlobalVar);
     link_symbol(JS_Throw);
+    link_symbol(JS_ThrowReferenceError);
     link_symbol(JS_ThrowReferenceErrorNotDefined);
+    link_symbol(JS_ThrowReferenceErrorUninitialized);
     link_symbol(JS_ThrowReferenceErrorUninitialized2);
+    link_symbol(JS_ThrowSyntaxErrorVarRedeclaration);
     link_symbol(JS_ThrowTypeError);
+    link_symbol(JS_ThrowTypeErrorReadOnly);
     link_symbol(JS_ToBoolFree);
     link_symbol(JS_ToObject);
     link_symbol(close_lexical_var);
