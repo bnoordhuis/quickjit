@@ -32372,6 +32372,7 @@ static const char prolog[] =
     "#define JS_VALUE_IS_BOTH_FLOAT(v1, v2) (JS_TAG_IS_FLOAT64(JS_VALUE_GET_TAG(v1)) && JS_TAG_IS_FLOAT64(JS_VALUE_GET_TAG(v2)))\n"
     "#define JS_VALUE_HAS_REF_COUNT(v) ((unsigned)JS_VALUE_GET_TAG(v) >= (unsigned)JS_TAG_FIRST)\n"
     "#define JSValueConst JSValue\n"
+    "const double __mzerodf = -0.0;"  // used by tcc in -d expressions
     "typedef int int32_t;"
     "typedef long long int64_t;"
     "typedef unsigned int uint32_t;"
@@ -33408,6 +33409,39 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                     "JS_FreeValue(ctx, sp[-1]);"
                 "}"
                 "sp--;");
+            break;
+        case 0x8C: // neg:none 1 +1,-1
+            gensym++;
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue op1;"
+                "uint32_t tag;"
+                "int val;"
+                "double d;"
+                "op1 = sp[-1];"
+                "tag = JS_VALUE_GET_TAG(op1);"
+                "if (tag == JS_TAG_INT) {"
+                    "val = JS_VALUE_GET_INT(op1);"
+                    /* Note: -0 cannot be expressed as integer */
+                    "if (unlikely(val == 0)) {"
+                        "d = -0.0;"
+                        "goto neg_fp_res%d;"
+                    "}"
+                    "if (unlikely(val == %d)) {"
+                        "d = -(double)val;"
+                        "goto neg_fp_res%d;"
+                    "}"
+                    "sp[-1] = JS_NewInt32(ctx, -val);"
+                "} else if (JS_TAG_IS_FLOAT64(tag)) {"
+                    "d = -JS_VALUE_GET_FLOAT64(op1);"
+                "neg_fp_res%d:"
+                    "sp[-1] = __JS_NewFloat64(ctx, d);"
+                "} else {"
+                    "if (js_unary_arith_slow(ctx, sp, %d))"
+                        "goto exception;"
+                "}"
+                "}",
+                gensym, INT32_MIN, gensym, gensym, op);
             break;
         case 0x8F: // inc:none 1 +1,-1
             gensym++;
