@@ -32655,13 +32655,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_printf(&dbuf,
                 "*sp++ = JS_NewInt32(ctx, %d);",
                 get_u32(pc+1));
-            pc += 5;
             break;
         case 0x02: // push_const:const 5 +1,-0
             dbuf_printf(&dbuf,
                 "*sp++ = JS_DupValue(ctx, cpool(b, %u));",
                 get_u32(pc+1));
-            pc += 5;
             break;
         case 0x03: // fclosure:const 5 +1,-0
             dbuf_printf(&dbuf,
@@ -32672,13 +32670,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    goto exception;"
                 "}",
                 get_u32(pc+1));
-            pc += 5;
             break;
         case 0x04: // push_atom_value:atom 5 +1,-0
             dbuf_printf(&dbuf,
                 "*sp++ = JS_AtomToValue(ctx, %u);",
                 get_u32(pc+1));
-            pc += 5;
             break;
         case 0x05: // private_symbol:atom 5 +1,-0
             dbuf_printf(&dbuf,
@@ -32689,15 +32685,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "*sp++ = val;"
                 "}",
                 get_u32(pc+1), JS_ATOM_TYPE_PRIVATE);
-            pc += 5;
             break;
         case 0x06: // undefined:none 1 +1,-0
             dbuf_putstr(&dbuf, "*sp++ = JS_UNDEFINED;");
-            pc++;
             break;
         case 0x07: // null:none 1 +1,-0
             dbuf_putstr(&dbuf, "*sp++ = JS_NULL;");
-            pc++;
             break;
         case 0x08: // push_this:none 1 +1,-0
             if (b->js_mode & JS_MODE_STRICT) {
@@ -32718,22 +32711,18 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                     "}",
                     (int) offsetof(JSContext, global_obj));
             }
-            pc++;
             break;
         case 0x09: // push_false:none 1 +1,-0
             dbuf_putstr(&dbuf, "*sp++ = JS_FALSE;");
-            pc++;
             break;
         case 0x0A: // push_true:none 1 +1,-0
             dbuf_putstr(&dbuf, "*sp++ = JS_TRUE;");
-            pc++;
             break;
         case 0x0B: // object:none 1 +1,-0
             dbuf_putstr(&dbuf,
                 "*sp++ = JS_NewObject(ctx);"
                 "if (unlikely(JS_IsException(sp[-1])))"
                 "    goto exception;");
-            pc++;
             break;
         case 0x0C: // special_object:u8 2 +1,-0
             switch (pc[1]) {
@@ -32791,7 +32780,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             default:
                 abort();
             }
-            pc += 2;
             break;
         case 0x0D: // rest:u16 3 +1,-0
             dbuf_printf(&dbuf,
@@ -32799,20 +32787,17 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "if (unlikely(JS_IsException(sp[-1])))"
                 "    goto exception;",
                 /*first*/get_u16(pc+1));
-            pc += 3;
             break;
         case 0x0E: // drop:none 1 +0,-1
             dbuf_putstr(&dbuf,
                 "JS_FreeValue(ctx, sp[-1]);"
                 "sp--;");
-            pc++;
             break;
         case 0x0F: // nip:none 1 +1,-2
             dbuf_putstr(&dbuf,
                 "JS_FreeValue(ctx, sp[-2]);"
                 "sp[-2] = sp[-1];"
                 "sp--;");
-            pc++;
             break;
         case 0x10: // nip1:none 1 +2,-3
             dbuf_putstr(&dbuf,
@@ -32820,27 +32805,23 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-3] = sp[-2];"
                 "sp[-2] = sp[-1];"
                 "sp--;");
-            pc++;
             break;
         case 0x11: // dup:none 1 +2,-1
             dbuf_putstr(&dbuf,
                 "sp[0] = JS_DupValue(ctx, sp[-1]);"
                 "sp++;");
-            pc++;
             break;
         case 0x12: // dup1:none 1 +3,-2
             dbuf_putstr(&dbuf,
                 "sp[0] = sp[-1];"
                 "sp[-1] = JS_DupValue(ctx, sp[-2]);"
                 "sp++;");
-            pc++;
             break;
         case 0x13: // dup2:none 1 +4,-2
             dbuf_putstr(&dbuf,
                 "sp[0] = JS_DupValue(ctx, sp[-2]);"
                 "sp[1] = JS_DupValue(ctx, sp[-1]);"
                 "sp += 2;");
-            pc++;
             break;
         case 0x14: // dup3:none 1 +6,-3
             dbuf_putstr(&dbuf,
@@ -32848,7 +32829,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[1] = JS_DupValue(ctx, sp[-2]);"
                 "sp[2] = JS_DupValue(ctx, sp[-1]);"
                 "sp += 3;");
-            pc++;
             break;
         case 0x15: // insert2:none 1 +3,-2
             dbuf_putstr(&dbuf,
@@ -32856,7 +32836,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-1] = sp[-2];"
                 "sp[-2] = JS_DupValue(ctx, sp[0]);"
                 "sp++;");
-            pc++;
             break;
         case 0x16: // insert3:none 1 +4,-3
             dbuf_putstr(&dbuf,
@@ -32865,7 +32844,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-2] = sp[-3];"
                 "sp[-3] = JS_DupValue(ctx, sp[0]);"
                 "sp++;");
-            pc++;
             break;
         case 0x17: // insert4:none 1 +5,-4
             dbuf_putstr(&dbuf,
@@ -32875,7 +32853,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-3] = sp[-4];"
                 "sp[-4] = JS_DupValue(ctx, sp[0]);"
                 "sp++;");
-            pc++;
             break;
         case 0x18: // perm3:none 1 +3,-3
             dbuf_putstr(&dbuf,
@@ -32886,7 +32863,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-2] = sp[-1];"
                 "sp[-1] = tmp;"
                 "}");
-            pc++;
             break;
         case 0x19: // perm4:none 1 +4,-4
             dbuf_putstr(&dbuf,
@@ -32897,7 +32873,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-3] = sp[-4];"
                 "sp[-4] = tmp;"
                 "}");
-            pc++;
             break;
         case 0x1A: // perm5:none 1 +5,-5
             dbuf_putstr(&dbuf,
@@ -32909,7 +32884,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-4] = sp[-5];"
                 "sp[-5] = tmp;"
                 "}");
-            pc++;
             break;
         case 0x1B: // swap:none 1 +2,-2
             dbuf_putstr(&dbuf,
@@ -32919,7 +32893,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-2] = sp[-1];"
                 "sp[-1] = tmp;"
                 "}");
-            pc++;
             break;
         case 0x1C: // swap2:none 1 +4,-4
             dbuf_putstr(&dbuf,
@@ -32932,7 +32905,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-2] = tmp1;"
                 "sp[-1] = tmp2;"
                 "}");
-            pc++;
             break;
         case 0x1D: // rot3l:none 1 +3,-3
             dbuf_putstr(&dbuf,
@@ -32943,7 +32915,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-2] = sp[-1];"
                 "sp[-1] = tmp;"
                 "}");
-            pc++;
             break;
         case 0x1E: // rot3r:none 1 +3,-3
             dbuf_putstr(&dbuf,
@@ -32954,7 +32925,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-2] = sp[-3];"
                 "sp[-3] = tmp;"
                 "}");
-            pc++;
             break;
         case 0x1F: // rot4l:none 1 +4,-4
             dbuf_putstr(&dbuf,
@@ -32966,7 +32936,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-2] = sp[-1];"
                 "sp[-1] = tmp;"
                 "}");
-            pc++;
             break;
         case 0x20: // rot5l:none 1 +5,-5
             dbuf_putstr(&dbuf,
@@ -32979,7 +32948,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-2] = sp[-1];"
                 "sp[-1] = tmp;"
                 "}");
-            pc++;
             break;
         case 0x21: // call_constructor:npop 3 +1,-2
             dbuf_printf(&dbuf,
@@ -32998,28 +32966,20 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "*sp++ = ret_val;"
                 "}",
                 /*call_argc*/get_u16(pc+1), /*next opcode*/pc+3);
-            pc += 3;
             break;
         case 0x22: // call:npop 3 +1,-1
         case 0x23: // tail_call:npop 3 +0,-1
             call_argc = get_u16(pc+1);
+            dbuf_printf(&dbuf, "set_cur_pc(sf, (void *) %p);", /*next opcode*/pc+3);
         has_call_argc:
             dbuf_printf(&dbuf,
                 "{"
                 "JSValue *call_argv = sp - %d;"
-                "set_cur_pc(sf, (void *) %p);"
                 "ret_val = JS_CallInternal(ctx, call_argv[-1], JS_UNDEFINED,"
                 "                          JS_UNDEFINED, %d, call_argv, 0);"
                 "if (unlikely(JS_IsException(ret_val)))"
                 "    goto exception;",
-                call_argc, pc, call_argc);
-            if (op == OP_call || op == OP_tail_call) {
-                pc += 3;
-            } else if (op >= OP_call0 && op <= OP_call3) {
-                pc += 1;
-            } else {
-                abort();
-            }
+                call_argc, call_argc);
             if (op == OP_tail_call) {
                 dbuf_putstr(&dbuf, "goto done;");
             } else {
@@ -33055,7 +33015,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                     "*sp++ = ret_val;");
             }
             dbuf_putstr(&dbuf, "}");
-            pc += 3;
             break;
         case 0x26: // array_from:npop 3 +1,-0
             dbuf_printf(&dbuf,
@@ -33077,7 +33036,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "*sp++ = ret_val;"
                 "}",
                 get_u16(pc+1), JS_PROP_C_W_E|JS_PROP_THROW);
-            pc += 3;
             break;
         case 0x27: // apply:u16 3 +1,-3
             dbuf_printf(&dbuf,
@@ -33090,17 +33048,14 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp -= 3;"
                 "*sp++ = ret_val;",
                 /*magic*/get_u16(pc+1));
-            pc += 3;
             break;
         case 0x28: // return:none 1 +0,-1
             dbuf_putstr(&dbuf, "ret_val = *--sp;");
             dbuf_putstr(&dbuf, "goto done;");
-            pc++;
             break;
         case 0x29: // return_undef:none 1 +0,-0
             dbuf_putstr(&dbuf, "ret_val = JS_UNDEFINED;");
             dbuf_putstr(&dbuf, "goto done;");
-            pc++;
             break;
         case 0x2A: // check_ctor_return:none 1 +2,-1
             dbuf_putstr(&dbuf,
@@ -33114,7 +33069,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    sp[0] = JS_FALSE;"
                 "}"
                 "sp++;");
-            pc++;
             break;
         case 0x2B: // check_ctor:none 1 +0,-0
             dbuf_putstr(&dbuf,
@@ -33122,13 +33076,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    JS_ThrowTypeError(ctx, \"class constructors must be invoked with 'new'\");"
                 "    goto exception;"
                 "}");
-            pc++;
             break;
         case 0x2C: // check_brand:none 1 +2,-2
             dbuf_putstr(&dbuf,
                 "if (JS_CheckBrand(ctx, sp[-2], sp[-1]) < 0)"
                 "    goto exception;");
-            pc++;
             break;
         case 0x2D: // add_brand:none 1 +0,-2
             dbuf_putstr(&dbuf,
@@ -33137,11 +33089,9 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "JS_FreeValue(ctx, sp[-2]);"
                 "JS_FreeValue(ctx, sp[-1]);"
                 "sp -= 2;");
-            pc++;
             break;
         case 0x2F: // throw:none 1 +0,-1
             dbuf_putstr(&dbuf, "JS_Throw(ctx, *--sp);");
-            pc++;
             break;
         case 0x30: // throw_error:atom_u8 6 +0,-0
             idx = pc[5];
@@ -33173,7 +33123,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             default:
                 abort();
             }
-            pc += 6;
             break;
         case 0x31: // eval:npop_u16 5 +1,-1
             dbuf_printf(&dbuf,
@@ -33207,7 +33156,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 (int) offsetof(JSContext, eval_obj),
                 /*next opcode*/pc+5,
                 JS_EVAL_TYPE_INDIRECT);
-            pc += 5;
             break;
         case 0x36: // check_var:atom 5 +1,-0
             dbuf_printf(&dbuf,
@@ -33218,7 +33166,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "*sp++ = JS_NewBool(ctx, ret);"
                 "}",
                 /*atom*/get_u32(pc+1));
-            pc += 5;
             break;
         case 0x37: // get_var_undef:atom 5 +1,-0
         case 0x38: // get_var:atom 5 +1,-0
@@ -33230,7 +33177,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "*sp++ = val;"
                 "}",
                 /*atom*/get_u32(pc+1), op-0x37);
-            pc += 5;
             break;
         case 0x39: // put_var:atom 5 +0,-1
         case 0x3A: // put_var_init:atom 5 +0,-1
@@ -33242,7 +33188,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    goto exception;"
                 "}",
                 /*atom*/get_u32(pc+1), op-0x39);
-            pc += 5;
             break;
         case 0x3B: // put_var_strict:atom 5 +0,-2
             idx = /*atom*/get_u32(pc+1);
@@ -33258,21 +33203,18 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    goto exception;"
                 "}",
                 idx, idx);
-            pc += 5;
             break;
         case 0x3E: // define_var:atom_u8 6 +0,-0
             dbuf_printf(&dbuf,
                 "if (JS_DefineGlobalVar(ctx, %d, %d))"
                 "    goto exception;",
                 /*atom*/get_u32(pc+1), /*flags*/pc[5]);
-            pc += 6;
             break;
         case 0x3F: // check_define_var:atom_u8 6 +0,-0
             dbuf_printf(&dbuf,
                 "if (JS_CheckDefineGlobalVar(ctx, %d, %d))"
                 "    goto exception;",
                 /*atom*/get_u32(pc+1), /*flags*/pc[5]);
-            pc += 6;
             break;
         case 0x40: // define_func:atom_u8 6 +0,-1
             dbuf_printf(&dbuf,
@@ -33281,7 +33223,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "JS_FreeValue(ctx, sp[-1]);"
                 "sp--;",
                 /*atom*/get_u32(pc+1), /*flags*/pc[5]);
-            pc += 6;
             break;
         case 0x41: // get_field:atom 5 +1,-1
             dbuf_printf(&dbuf,
@@ -33293,7 +33234,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-1] = val;"
                 "}",
                 /*atom*/get_u32(pc+1));
-            pc += 5;
             break;
         case 0x42: // get_field2:atom 5 +2,-1
             dbuf_printf(&dbuf,
@@ -33304,7 +33244,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "*sp++ = val;"
                 "}",
                 /*atom*/get_u32(pc+1));
-            pc += 5;
             break;
         case 0x56: // define_class:atom_u8 6 +2,-2
         case 0x57: // define_class_computed:atom_u8 6 +3,-3
@@ -33314,12 +33253,10 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 /*atom*/get_u32(pc+1),
                 /*class_flags*/pc[5],
                 op == OP_define_class_computed);
-            pc += 6;
             break;
         case 0x61: // set_loc_uninitialized:loc 3 +0,-0
             idx = get_u16(pc+1);
             dbuf_printf(&dbuf, "set_value(ctx, &var_buf[%d], JS_UNINITIALIZED);", idx);
-            pc += 3;
             break;
         case 0x62: // get_loc_check:loc 3 +1,-0
             idx = get_u16(pc+1);
@@ -33332,7 +33269,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[0] = JS_DupValue(ctx, var_buf[%d]);"
                 "sp++;",
                 idx, idx, pc, idx);
-            pc += 3;
             break;
         case 0x63: // put_loc_check:loc 3 +0,-1
             idx = get_u16(pc+1);
@@ -33345,7 +33281,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "set_value(ctx, &var_buf[%d], sp[-1]);"
                 "sp--;",
                 idx, idx, pc, idx);
-            pc += 3;
             break;
         case 0x65: // get_var_ref_check:var_ref 3 +1,-0
             idx = get_u16(pc+1);
@@ -33360,13 +33295,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp++;"
                 "}",
                 idx, idx);
-            pc += 3;
             break;
         case 0x68: // close_loc:loc 3 +0,-0
             dbuf_printf(&dbuf,
                 "close_lexical_var(ctx, sf, %d, FALSE);",
                 get_u16(pc+1));
-            pc += 3;
             break;
         case 0x7D: // for_of_start:none 1 +3,-1
             dbuf_putstr(&dbuf,
@@ -33374,7 +33307,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    goto exception;"
                 "sp += 1;"
                 "*sp++ = JS_NewCatchOffset(ctx, 0);");
-            pc++;
             break;
         case 0x80: // for_of_next:u8 2 +5,-3
             dbuf_printf(&dbuf,
@@ -33382,7 +33314,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    goto exception;"
                 "sp += 2;",
                 -3 - pc[1]);
-            pc += 2;
             break;
         case 0x83: // iterator_close:none 1 +0,-3
             dbuf_putstr(&dbuf,
@@ -33395,7 +33326,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    JS_FreeValue(ctx, sp[-1]);"
                 "}"
                 "sp--;");
-            pc++;
             break;
         case 0x97: // typeof:none 1 +1,-1
             dbuf_putstr(&dbuf,
@@ -33405,7 +33335,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "JS_FreeValue(ctx, op1);"
                 "sp[-1] = JS_AtomToString(ctx, atom);"
                 "}");
-            pc++;
             break;
         case 0x9D: // add:none 1 +1,-2
             idx = gensym++;
@@ -33434,7 +33363,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "        sp--;"
                 "    }"
                 "}", idx, idx, pc);
-            pc++;
             break;
         case 0x9E: // sub:none 1 +1,-2
             idx = gensym++;
@@ -33466,7 +33394,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    }"
                 "    sp--;"
                 "}", idx, idx, idx, op, pc);
-            pc++;
             break;
         case 0xA3: // lt:none 1 +1,-2
         case 0xA4: // lte:none 1 +1,-2
@@ -33490,7 +33417,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}"
                 "}",
                 binops[op-0xA3], op, pc);
-            pc++;
             break;
         case 0xA9: // eq:none 1 +1,-2
         case 0xAA: // neq:none 1 +1,-2
@@ -33520,7 +33446,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}"
                 "}",
                 cmpops[idx], slowcalls[idx], idx & 1);
-            pc++;
             break;
         case 0xB0: // is_undefined_or_null:none 1 +1,-1
             dbuf_putstr(&dbuf,
@@ -33531,10 +33456,8 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    JS_FreeValue(ctx, sp[-1]);"
                 "    sp[-1] = JS_FALSE;"
                 "}");
-            pc++;
             break;
         case 0xB1: // nop:none 1 +0,-0
-            pc++;
             break;
         case 0xB2: // push_minus1:none_int 1 +1,-0
         case 0xB3: // push_0:none_int 1 +1,-0
@@ -33546,11 +33469,9 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0xB9: // push_6:none_int 1 +1,-0
         case 0xBA: // push_7:none_int 1 +1,-0
             dbuf_printf(&dbuf, "*sp++ = JS_NewInt32(ctx, %d);", op-OP_push_0);
-            pc++;
             break;
         case 0xBB: // push_i8:i8 2 +1,-0
             dbuf_printf(&dbuf, "*sp++ = JS_NewInt32(ctx, %d);", get_i8(pc+1));
-            pc += 2;
             break;
         case 0xBE: // fclosure8:const8 2 +1,-0
             dbuf_printf(&dbuf,
@@ -33558,82 +33479,69 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "if (unlikely(JS_IsException(sp[-1])))"
                 "    goto exception;",
                 pc[1]);
-            pc += 2;
             break;
         case 0xBD: // push_const8:const8 2 +1,-0
             dbuf_printf(&dbuf, "*sp++ = JS_DupValue(ctx, cpool(b, %u));", pc[1]);
-            pc += 2;
             break;
         case 0xC1: // put_loc8:loc8 2 +0,-1
             dbuf_printf(&dbuf, "*sp++ = JS_DupValue(ctx, var_buf[%d]);", pc[1]);
-            pc += 2;
             break;
         case 0xC2: // set_loc8:loc8 2 +1,-1
             dbuf_printf(&dbuf, "set_value(ctx, &var_buf[%d], JS_DupValue(ctx, sp[-1]));", pc[1]);
-            pc += 2;
             break;
         case 0xC3: // get_loc0:none_loc 1 +1,-0
         case 0xC4: // get_loc1:none_loc 1 +1,-0
         case 0xC5: // get_loc2:none_loc 1 +1,-0
         case 0xC6: // get_loc3:none_loc 1 +1,-0
             dbuf_printf(&dbuf, "*sp++ = JS_DupValue(ctx, var_buf[%d]);", op-0xC3);
-            pc++;
             break;
         case 0xC7: // put_loc0:none_loc 1 +0,-1
         case 0xC8: // put_loc1:none_loc 1 +0,-1
         case 0xC9: // put_loc2:none_loc 1 +0,-1
         case 0xCA: // put_loc3:none_loc 1 +0,-1
             dbuf_printf(&dbuf, "set_value(ctx, &var_buf[%d], *--sp);", op-0xC7);
-            pc++;
             break;
         case 0xCB: // set_loc0:none_loc 1 +1,-1
         case 0xCC: // set_loc1:none_loc 1 +1,-1
         case 0xCD: // set_loc2:none_loc 1 +1,-1
         case 0xCE: // set_loc3:none_loc 1 +1,-1
             dbuf_printf(&dbuf, "set_value(ctx, &var_buf[%d], JS_DupValue(ctx, sp[-1]));", op-0xCB);
-            pc++;
             break;
         case 0xCF: // get_arg0:none_arg 1 +1,-0
         case 0xD0: // get_arg1:none_arg 1 +1,-0
         case 0xD1: // get_arg2:none_arg 1 +1,-0
         case 0xD2: // get_arg3:none_arg 1 +1,-0
             dbuf_printf(&dbuf, "*sp++ = JS_DupValue(ctx, arg_buf[%d]);", op-0xCF);
-            pc++;
             break;
         case 0xD3: // put_arg0:none_arg 1 +0,-1
         case 0xD4: // put_arg1:none_arg 1 +0,-1
         case 0xD5: // put_arg2:none_arg 1 +0,-1
         case 0xD6: // put_arg3:none_arg 1 +0,-1
             dbuf_printf(&dbuf, "set_value(ctx, &arg_buf[%d], *--sp);", op-0xD3);
-            pc++;
             break;
         case 0xD7: // set_arg0:none_arg 1 +1,-1
         case 0xD8: // set_arg1:none_arg 1 +1,-1
         case 0xD9: // set_arg2:none_arg 1 +1,-1
         case 0xDA: // set_arg3:none_arg 1 +1,-1
             dbuf_printf(&dbuf, "set_value(ctx, &arg_buf[%d], JS_DupValue(ctx, sp[-1]));", op-0xD7);
-            pc++;
             break;
         case 0xDB: // get_var_ref0:none_var_ref 1 +1,-0
         case 0xDC: // get_var_ref1:none_var_ref 1 +1,-0
         case 0xDD: // get_var_ref2:none_var_ref 1 +1,-0
         case 0xDE: // get_var_ref3:none_var_ref 1 +1,-0
             dbuf_printf(&dbuf, "*sp++ = JS_DupValue(ctx, **pvalue(var_refs[%d]));", op-0xDB);
-            pc++;
             break;
         case 0xDF: // put_var_ref0:none_var_ref 1 +0,-1
         case 0xE0: // put_var_ref1:none_var_ref 1 +0,-1
         case 0xE1: // put_var_ref2:none_var_ref 1 +0,-1
         case 0xE2: // put_var_ref3:none_var_ref 1 +0,-1
             dbuf_printf(&dbuf, "set_value(ctx, *pvalue(var_refs[%d]), *--sp);", op-0xDF);
-            pc++;
             break;
         case 0xE3: // set_var_ref0:none_var_ref 1 +1,-1
         case 0xE4: // set_var_ref1:none_var_ref 1 +1,-1
         case 0xE5: // set_var_ref2:none_var_ref 1 +1,-1
         case 0xE6: // set_var_ref3:none_var_ref 1 +1,-1
             dbuf_printf(&dbuf, "set_value(ctx, *pvalue(var_refs[%d]), JS_DupValue(ctx, sp[-1]));", op-0xE3);
-            pc++;
             break;
         case 0xE8: // if_false8:label8 2 +0,-1
         case 0xE9: // if_true8:label8 2 +0,-1
@@ -33658,18 +33566,17 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    }"
                 "}",
                 pc, "! "[op-0xE8], idx);
-            pc += 2;
             break;
         case 0xEA: // goto8:label8 2 +0,-0
             idx = idx + 1 + (int8_t)pc[1];
             dbuf_printf(&dbuf, "goto pc%d;", idx);
-            pc += 2;
             break;
         case 0xEC: // call0:npopx 1 +1,-1
         case 0xED: // call1:npopx 1 +1,-1
         case 0xEE: // call2:npopx 1 +1,-1
         case 0xEF: // call3:npopx 1 +1,-1
             call_argc = op - 0xEC;
+            dbuf_printf(&dbuf, "set_cur_pc(sf, (void *) %p);", /*next opcode*/pc+1);
             goto has_call_argc;
         case 0xF0: // is_undefined:none 1 +1,-1
             dbuf_putstr(&dbuf,
@@ -33679,7 +33586,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    JS_FreeValue(ctx, sp[-1]);"
                 "    sp[-1] = JS_FALSE;"
                 "}");
-            pc++;
             break;
         case 0xF1: // is_null:none 1 +1,-1
             dbuf_putstr(&dbuf,
@@ -33689,7 +33595,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    JS_FreeValue(ctx, sp[-1]);"
                 "    sp[-1] = JS_FALSE;"
                 "}");
-            pc++;
             break;
         case 0xF2: // typeof_is_undefined:none 1 +1,-1
         case 0xF3: // typeof_is_function:none 1 +1,-1
@@ -33703,9 +33608,16 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    sp[-1] = JS_FALSE;"
                 "}",
                 typeofs[op-0xF2]);
-            pc++;
             break;
         }
+        static const uint8_t opsizes[256] = {
+#define DEF(id, size, n_pop, n_push, f) size,
+#define def(id, size, n_pop, n_push, f)
+#include "quickjs-opcode.h"
+#undef def
+#undef DEF
+        };
+        pc += opsizes[op];
     }
 
     static const char epilog[] =
