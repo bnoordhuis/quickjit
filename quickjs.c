@@ -33828,6 +33828,17 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0xE6: // set_var_ref3:none_var_ref 1 +1,-1
             dbuf_printf(&dbuf, "set_value(ctx, *pvalue(var_refs[%d]), JS_DupValue(ctx, sp[-1]));", op-0xE3);
             break;
+        case 0xE7: // get_length:none 1 +1,-1
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue val = JS_GetProperty(ctx, sp[-1], %d);"
+                "if (unlikely(JS_IsException(val)))"
+                    "goto exception;"
+                "JS_FreeValue(ctx, sp[-1]);"
+                "sp[-1] = val;"
+                "}",
+                JS_ATOM_length);
+            break;
         case 0xE8: // if_false8:label8 2 +0,-1
         case 0xE9: // if_true8:label8 2 +0,-1
             idx = idx + 1 + (int8_t)pc[1];
