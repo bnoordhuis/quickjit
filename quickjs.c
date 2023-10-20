@@ -33322,6 +33322,17 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}",
                 JS_PROP_THROW_STRICT);
             break;
+        case 0x4C: // define_field:atom 5 +1,-2
+            dbuf_printf(&dbuf,
+                "{"
+                "int ret = JS_DefinePropertyValue(ctx, sp[-2], %d, sp[-1], %d);"
+                "sp--;"
+                "if (unlikely(ret < 0))"
+                    "goto exception;"
+                "}",
+                /*atom*/get_u32(pc+1),
+                /*flags*/JS_PROP_C_W_E|JS_PROP_THROW);
+            break;
         case 0x56: // define_class:atom_u8 6 +2,-2
         case 0x57: // define_class_computed:atom_u8 6 +3,-3
             dbuf_printf(&dbuf,
