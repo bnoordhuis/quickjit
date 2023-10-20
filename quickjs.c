@@ -33389,6 +33389,27 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "close_lexical_var(ctx, sf, %d, FALSE);",
                 get_u16(pc+1));
             break;
+        case 0x69: // if_false:label 5 +0,-1
+        case 0x6A: // if_true:label 5 +0,-1
+            dbuf_printf(&dbuf,
+                "{"
+                "int res;"
+                "JSValue op1;"
+                "op1 = sp[-1];"
+                "if ((uint32_t)JS_VALUE_GET_TAG(op1) <= JS_TAG_UNDEFINED) {"
+                    "res = JS_VALUE_GET_INT(op1);"
+                "} else {"
+                    "res = JS_ToBoolFree(ctx, op1);"
+                "}"
+                "sp--;"
+                "if (unlikely(js_poll_interrupts(ctx)))"
+                    "goto exception;"
+                "if (%cres) {"
+                    "goto pc%d;"
+                "}"
+                "}",
+                "! "[op-0x69], idx+5+get_i32(pc+1)-4);
+            break;
         case 0x71: // to_propkey2:none 1 +2,-2
             dbuf_putstr(&dbuf,
                 "if (unlikely(JS_IsUndefined(sp[-2]) || JS_IsNull(sp[-2]))) {"
@@ -33878,27 +33899,24 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             break;
         case 0xE8: // if_false8:label8 2 +0,-1
         case 0xE9: // if_true8:label8 2 +0,-1
-            idx = idx + 1 + (int8_t)pc[1];
             dbuf_printf(&dbuf,
                 "{"
-                    "int res;"
-                    "JSValue op1;"
-                    "op1 = sp[-1];"
-                    "if ((uint32_t)JS_VALUE_GET_TAG(op1) <= JS_TAG_UNDEFINED) {"
-                        "res = JS_VALUE_GET_INT(op1);"
-                    "} else {"
-                        "res = JS_ToBoolFree(ctx, op1);"
-                    "}"
-                    "sp--;"
-                    "if (unlikely(js_poll_interrupts(ctx))) {"
-                        "set_cur_pc(sf, (void *) %p);"
-                        "goto exception;"
-                    "}"
-                    "if (%cres) {"
-                        "goto pc%d;"
-                    "}"
+                "int res;"
+                "JSValue op1;"
+                "op1 = sp[-1];"
+                "if ((uint32_t)JS_VALUE_GET_TAG(op1) <= JS_TAG_UNDEFINED) {"
+                    "res = JS_VALUE_GET_INT(op1);"
+                "} else {"
+                    "res = JS_ToBoolFree(ctx, op1);"
+                "}"
+                "sp--;"
+                "if (unlikely(js_poll_interrupts(ctx)))"
+                    "goto exception;"
+                "if (%cres) {"
+                    "goto pc%d;"
+                "}"
                 "}",
-                pc, "! "[op-0xE8], idx);
+                "! "[op-0xE8], idx+2+get_i8(pc+1)-1);
             break;
         case 0xEA: // goto8:label8 2 +0,-0
             idx = idx + 1 + (int8_t)pc[1];
