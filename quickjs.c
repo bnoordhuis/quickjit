@@ -32433,6 +32433,7 @@ static const char prolog[] =
     "int JS_IteratorClose(JSContext *ctx, JSValueConst enum_obj, BOOL is_exception_pending);"
     "JSValue JS_NewArray(JSContext *ctx);"
     "JSValue JS_NewCatchOffset(JSContext *ctx, int32_t val);"
+    "JSValue JS_NewFloat64(JSContext *ctx, double d);"
     "JSValue JS_NewObject(JSContext *ctx);"
     "JSValue JS_NewObjectProto(JSContext *ctx, JSValueConst proto);"
     "JSValue JS_NewSymbolFromAtom(JSContext *ctx, JSAtom descr, int atom_type);"
@@ -32555,6 +32556,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_IteratorClose);
     add_symbol(JS_NewArray);
     add_symbol(JS_NewCatchOffset);
+    add_symbol(JS_NewFloat64);
     add_symbol(JS_NewObject);
     add_symbol(JS_NewObjectProto);
     add_symbol(JS_NewSymbolFromAtom);
@@ -33504,6 +33506,26 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}"
                 "}",
                 gensym, gensym, gensym, op);
+            break;
+        case 0x9B: // div:none 1 +1,-2
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue op1, op2;"
+                "op1 = sp[-2];"
+                "op2 = sp[-1];"
+                "if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                    "int v1, v2;"
+                    "v1 = JS_VALUE_GET_INT(op1);"
+                    "v2 = JS_VALUE_GET_INT(op2);"
+                    "sp[-2] = JS_NewFloat64(ctx, (double)v1 / (double)v2);"
+                    "sp--;"
+                "} else {"
+                    "if (js_binary_arith_slow(ctx, sp, %d))"
+                        "goto exception;"
+                    "sp--;"
+                "}"
+                "}",
+                op);
             break;
         case 0x9D: // add:none 1 +1,-2
             gensym++;
