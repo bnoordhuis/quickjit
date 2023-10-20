@@ -32573,15 +32573,6 @@ static void add_symbols(TCCState *s)
 #undef add_symbol
 }
 
-static const char epilog[] =
-    "exception:"
-    "    aux->sp = sp;"
-    "    return JS_EXCEPTION;"
-    "done:"
-    "    aux->sp = sp;"
-    "    return ret_val;"
-    "}";
-
 static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
 {
     const uint8_t *pc;
@@ -33679,6 +33670,15 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             break;
         }
     }
+
+    static const char epilog[] =
+        "exception:"
+        "    aux->sp = sp;"
+        "    return JS_EXCEPTION;"
+        "done:"
+        "    aux->sp = sp;"
+        "    return ret_val;"
+        "}";
 
     dbuf_put(&dbuf, (void *) epilog, sizeof(epilog));
 
