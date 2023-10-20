@@ -32424,6 +32424,7 @@ static const char prolog[] =
     "int JS_CheckBrand(JSContext *ctx, JSValueConst obj, JSValueConst func);"
     "int JS_CheckDefineGlobalVar(JSContext *ctx, JSAtom prop, int flags);"
     "int JS_CheckGlobalVar(JSContext *ctx, JSAtom prop);"
+    "JSValue JS_ConcatString(JSContext *ctx, JSValue op1, JSValue op2);"
     "int JS_DefineGlobalFunction(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
     "int JS_DefineGlobalVar(JSContext *ctx, JSAtom prop, int def_flags);"
     "int JS_DefinePropertyValue(JSContext *ctx, JSValueConst this_obj, JSAtom prop, JSValue val, int flags);"
@@ -32449,9 +32450,10 @@ static const char prolog[] =
     "JSValue JS_ThrowSyntaxErrorVarRedeclaration(JSContext *ctx, JSAtom prop);"
     "JSValue JS_ThrowTypeError(JSContext *ctx, const char *fmt, ...);"
     "int JS_ThrowTypeErrorReadOnly(JSContext *ctx, int flags, JSAtom atom);"
-    "int JS_ToBoolFree(JSContext *ctx, JSValue val);"
     "JSValue JS_ToObject(JSContext *ctx, JSValueConst val);"
+    "JSValue JS_ToPrimitiveFree(JSContext *ctx, JSValue val, int hint);"
     "JSValue JS_ToPropertyKey(JSContext *ctx, JSValueConst val);"
+    "int JS_ToBoolFree(JSContext *ctx, JSValue val);"
     "void close_lexical_var(JSContext *ctx, JSStackFrame *sf, int idx, int is_arg);"
     "int js_add_slow(JSContext *ctx, JSValue *sp);"
     "int js_binary_arith_slow(JSContext *ctx, JSValue *sp, int op);"
@@ -32548,6 +32550,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_CheckBrand);
     add_symbol(JS_CheckDefineGlobalVar);
     add_symbol(JS_CheckGlobalVar);
+    add_symbol(JS_ConcatString);
     add_symbol(JS_DefineGlobalFunction);
     add_symbol(JS_DefineGlobalVar);
     add_symbol(JS_DefinePropertyValue);
@@ -32575,6 +32578,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_ThrowTypeErrorReadOnly);
     add_symbol(JS_ToBoolFree);
     add_symbol(JS_ToObject);
+    add_symbol(JS_ToPrimitiveFree);
     add_symbol(JS_ToPropertyKey);
     add_symbol(__JS_AtomToValue);
     add_symbol(__JS_FreeValue);
@@ -33562,6 +33566,43 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                     "}"
                 "}",
                 idx, INT32_MAX, gensym, idx, gensym, OP_inc, idx);
+            break;
+        case 0x94: // add_loc:loc8 2 +0,-1
+            gensym++;
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue *pv = &var_buf[%d];"
+                "if (likely(JS_VALUE_IS_BOTH_INT(*pv, sp[-1]))) {"
+                    "int64_t r;"
+                    "r = (int64_t)JS_VALUE_GET_INT(*pv) +"
+                        "JS_VALUE_GET_INT(sp[-1]);"
+                    "if (unlikely((int)r != r))"
+                        "goto add_loc_slow%d;"
+                    "*pv = JS_NewInt32(ctx, r);"
+                    "sp--;"
+                "} else if (JS_VALUE_GET_TAG(*pv) == JS_TAG_STRING) {"
+                    "JSValue op1;"
+                    "op1 = sp[-1];"
+                    "sp--;"
+                    "op1 = JS_ToPrimitiveFree(ctx, op1, %d);"
+                    "if (JS_IsException(op1))"
+                        "goto exception;"
+                    "op1 = JS_ConcatString(ctx, JS_DupValue(ctx, *pv), op1);"
+                    "if (JS_IsException(op1))"
+                        "goto exception;"
+                    "set_value(ctx, pv, op1);"
+                "} else {"
+                    "JSValue ops[2];"
+                "add_loc_slow%d:"
+                    "ops[0] = JS_DupValue(ctx, *pv);"
+                    "ops[1] = sp[-1];"
+                    "sp--;"
+                    "if (js_add_slow(ctx, ops + 2))"
+                        "goto exception;"
+                    "set_value(ctx, pv, ops[0]);"
+                "}"
+                "}",
+                pc[1], gensym, HINT_NONE, gensym);
             break;
         case 0x97: // typeof:none 1 +1,-1
             dbuf_putstr(&dbuf,
