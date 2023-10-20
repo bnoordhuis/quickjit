@@ -32414,6 +32414,7 @@ static const char prolog[] =
 #undef p
     "JSValue __JS_AtomToValue(JSContext *ctx, JSAtom atom, BOOL force_string);"
     "void __JS_FreeValue(JSContext *ctx, JSValue v);"
+    "int __js_poll_interrupts(JSContext *ctx);"
     "int JS_AddBrand(JSContext *ctx, JSValueConst obj, JSValueConst home_obj);"
     "JSValue JS_CallConstructorInternal(JSContext *ctx, JSValueConst func_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
     "JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj, JSValueConst this_obj, JSValueConst new_target, int argc, JSValue *argv, int flags);"
@@ -32457,7 +32458,6 @@ static const char prolog[] =
     "int js_for_of_start(JSContext *ctx, JSValue *sp, BOOL is_async);"
     "JSValue js_function_apply(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic);"
     "JSValue js_import_meta(JSContext *ctx);"
-    "int js_poll_interrupts(JSContext *ctx);"
     "int js_post_inc_slow(JSContext *ctx, JSValue *sp, int op);"
     "int js_operator_typeof(JSContext *ctx, JSValueConst op1);"
     "int js_relational_slow(JSContext *ctx, JSValue *sp, int op);"
@@ -32561,6 +32561,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_ToObject);
     add_symbol(__JS_AtomToValue);
     add_symbol(__JS_FreeValue);
+    add_symbol(__js_poll_interrupts);
     add_symbol(close_lexical_var);
     add_symbol(js_add_slow);
     add_symbol(js_binary_arith_slow);
@@ -32576,7 +32577,6 @@ static void add_symbols(TCCState *s)
     add_symbol(js_import_meta);
     add_symbol(js_op_define_class);
     add_symbol(js_operator_typeof);
-    add_symbol(js_poll_interrupts);
     add_symbol(js_post_inc_slow);
     add_symbol(js_relational_slow);
     add_symbol(js_same_value);
@@ -32627,6 +32627,15 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         "    void **field = (void *) p + %d;"
         "    return *field;"
         "}"
+        "static inline int js_poll_interrupts(JSContext *ctx)"
+        "{"
+        "    int *interrupt_counter = (void *) ctx + %d;"
+        "    if (unlikely(--*interrupt_counter <= 0)) {"
+        "        return __js_poll_interrupts(ctx);"
+        "    } else {"
+        "        return 0;"
+        "    }"
+        "}"
         "JSValue jitcode(JSContext *ctx, JSValueConst func_obj,"
         "                JSValueConst this_obj, JSValueConst new_target,"
         "                int argc, JSValue *argv, int flags,"
@@ -32645,7 +32654,8 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         (int) offsetof(JSVarRef, pvalue),
         (int) offsetof(JSStackFrame, cur_pc),
         (int) offsetof(JSObject, u.func.function_bytecode),
-        (int) offsetof(JSObject, u.func.home_object));
+        (int) offsetof(JSObject, u.func.home_object),
+        (int) offsetof(JSContext, interrupt_counter));
 
     pc = b->byte_code_buf;
     while (pc < &b->byte_code_buf[b->byte_code_len]) {
