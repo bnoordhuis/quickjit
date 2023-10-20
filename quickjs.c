@@ -64,8 +64,9 @@
    threads */
 #define CONFIG_ATOMICS
 
+//TODO broken, interpreter and jit stack frames have different sizes
 /* enable stack limitation */
-#define CONFIG_STACK_CHECK
+//#define CONFIG_STACK_CHECK
 
 
 /* dump object free */
