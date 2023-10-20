@@ -32458,6 +32458,7 @@ static const char prolog[] =
     "JSValue js_function_apply(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic);"
     "JSValue js_import_meta(JSContext *ctx);"
     "int js_poll_interrupts(JSContext *ctx);"
+    "int js_post_inc_slow(JSContext *ctx, JSValue *sp, int op);"
     "int js_operator_typeof(JSContext *ctx, JSValueConst op1);"
     "int js_relational_slow(JSContext *ctx, JSValue *sp, int op);"
     "BOOL js_same_value(JSContext *ctx, JSValueConst op1, JSValueConst op2);"
@@ -32576,6 +32577,7 @@ static void add_symbols(TCCState *s)
     add_symbol(js_op_define_class);
     add_symbol(js_operator_typeof);
     add_symbol(js_poll_interrupts);
+    add_symbol(js_post_inc_slow);
     add_symbol(js_relational_slow);
     add_symbol(js_same_value);
     add_symbol(js_strict_eq_slow);
@@ -33350,6 +33352,14 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "    }"
                 "}",
                 INT32_MAX, gensym, gensym, op);
+            break;
+        case 0x90: // post_dec:none 1 +2,-1
+        case 0x91: // post_inc:none 1 +2,-1
+            dbuf_printf(&dbuf,
+                "if (js_post_inc_slow(ctx, sp, %d))"
+                "    goto exception;"
+                "sp++;",
+                op);
             break;
         case 0x93: // inc_loc:loc8 2 +0,-0
             gensym++;
