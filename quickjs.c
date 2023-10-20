@@ -32446,6 +32446,7 @@ static const char prolog[] =
     "void close_lexical_var(JSContext *ctx, JSStackFrame *sf, int idx, int is_arg);"
     "int js_add_slow(JSContext *ctx, JSValue *sp);"
     "int js_binary_arith_slow(JSContext *ctx, JSValue *sp, int op);"
+    "int js_binary_logic_slow(JSContext *ctx, JSValue *sp, int op);"
     "JSValue js_build_arguments(JSContext *ctx, int argc, JSValueConst *argv);"
     "JSValue js_build_mapped_arguments(JSContext *ctx, int argc, JSValueConst *argv, JSStackFrame *sf, int arg_count);"
     "JSValue js_build_rest(JSContext *ctx, int first, int argc, JSValueConst *argv);"
@@ -32561,6 +32562,7 @@ static void add_symbols(TCCState *s)
     add_symbol(close_lexical_var);
     add_symbol(js_add_slow);
     add_symbol(js_binary_arith_slow);
+    add_symbol(js_binary_logic_slow);
     add_symbol(js_build_arguments);
     add_symbol(js_build_mapped_arguments);
     add_symbol(js_build_rest);
@@ -33446,6 +33448,28 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}"
                 "}",
                 cmpops[idx], slowcalls[idx], idx & 1);
+            break;
+        case 0xAD: // and:none 1 +1,-2
+        case 0xAE: // xor:none 1 +1,-2
+        case 0xAF: // or:none 1 +1,-2
+            static const char bitops[] = "&^|";
+            dbuf_printf(&dbuf,
+                "{"
+                "    JSValue op1, op2;"
+                "    op1 = sp[-2];"
+                "    op2 = sp[-1];"
+                "    if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                "        sp[-2] = JS_NewInt32(ctx,"
+                "                             JS_VALUE_GET_INT(op1) %c"
+                "                             JS_VALUE_GET_INT(op2));"
+                "        sp--;"
+                "    } else {"
+                "        if (js_binary_logic_slow(ctx, sp, %d))"
+                "            goto exception;"
+                "        sp--;"
+                "    }"
+                "}",
+                bitops[op-0xAD], op);
             break;
         case 0xB0: // is_undefined_or_null:none 1 +1,-1
             dbuf_putstr(&dbuf,
