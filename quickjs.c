@@ -32462,6 +32462,7 @@ static const char prolog[] =
     "int js_relational_slow(JSContext *ctx, JSValue *sp, int op);"
     "BOOL js_same_value(JSContext *ctx, JSValueConst op1, JSValueConst op2);"
     "int js_strict_eq_slow(JSContext *ctx, JSValue *sp, BOOL is_neq);"
+    "int js_unary_arith_slow(JSContext *ctx, JSValue *sp, int op);"
     "void set_value(JSContext *ctx, JSValue *pval, JSValue new_val);"
     "static inline JSAtom __JS_AtomFromUInt32(uint32_t v)"
     "{"
@@ -32578,6 +32579,7 @@ static void add_symbols(TCCState *s)
     add_symbol(js_relational_slow);
     add_symbol(js_same_value);
     add_symbol(js_strict_eq_slow);
+    add_symbol(js_unary_arith_slow);
     add_symbol(memset);
     add_symbol(set_value);
 #undef add_symbol
@@ -33329,6 +33331,29 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}"
                 "sp--;");
             break;
+        case 0x93: // inc_loc:loc8 2 +0,-0
+            gensym++;
+            idx = pc[1];
+            dbuf_printf(&dbuf,
+                "{"
+                "    JSValue op1;"
+                "    int val;"
+                "    op1 = var_buf[%d];"
+                "    if (JS_VALUE_GET_TAG(op1) == JS_TAG_INT) {"
+                "        val = JS_VALUE_GET_INT(op1);"
+                "        if (unlikely(val == %d))"
+                "            goto inc_loc_slow%d;"
+                "        var_buf[%d] = JS_NewInt32(ctx, val + 1);"
+                "    } else {"
+                "    inc_loc_slow%d:"
+                "        op1 = JS_DupValue(ctx, op1);"
+                "        if (js_unary_arith_slow(ctx, &op1 + 1, %d))"
+                "            goto exception;"
+                "        set_value(ctx, &var_buf[%d], op1);"
+                "    }"
+                "}",
+                idx, INT32_MAX, gensym, idx, gensym, OP_inc, idx);
+            break;
         case 0x97: // typeof:none 1 +1,-1
             dbuf_putstr(&dbuf,
                 "{"
@@ -33339,7 +33364,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}");
             break;
         case 0x9D: // add:none 1 +1,-2
-            idx = gensym++;
+            gensym++;
             dbuf_printf(&dbuf,
                 "{"
                 "    JSValue op1, op2;"
@@ -33364,10 +33389,10 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "        }"
                 "        sp--;"
                 "    }"
-                "}", idx, idx, pc);
+                "}", gensym, gensym, pc);
             break;
         case 0x9E: // sub:none 1 +1,-2
-            idx = gensym++;
+            gensym++;
             dbuf_printf(&dbuf,
                 "{"
                 "    JSValue op1, op2;"
@@ -33395,7 +33420,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "        goto exception;"
                 "    }"
                 "    sp--;"
-                "}", idx, idx, idx, op, pc);
+                "}", gensym, gensym, gensym, op, pc);
             break;
         case 0xA3: // lt:none 1 +1,-2
         case 0xA4: // lte:none 1 +1,-2
