@@ -32429,6 +32429,7 @@ static const char prolog[] =
     "JSValue JS_EvalObject(JSContext *ctx, JSValueConst this_obj, JSValueConst val, int flags, int scope_idx);"
     "JSValue JS_GetGlobalVar(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "JSValue JS_GetProperty(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
+    "JSValue JS_GetPropertyValue(JSContext *ctx, JSValueConst this_obj, JSValue prop);"
     "int JS_IteratorClose(JSContext *ctx, JSValueConst enum_obj, BOOL is_exception_pending);"
     "JSValue JS_NewArray(JSContext *ctx);"
     "JSValue JS_NewCatchOffset(JSContext *ctx, int32_t val);"
@@ -32549,6 +32550,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_EvalObject);
     add_symbol(JS_GetGlobalVar);
     add_symbol(JS_GetProperty);
+    add_symbol(JS_GetPropertyValue);
     add_symbol(JS_IteratorClose);
     add_symbol(JS_NewArray);
     add_symbol(JS_NewCatchOffset);
@@ -33268,6 +33270,15 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "*sp++ = val;"
                 "}",
                 /*atom*/get_u32(pc+1));
+            break;
+        case 0x47: // get_array_el:none 1 +1,-2
+            dbuf_putstr(&dbuf,
+                "{"
+                "    JSValue val = JS_GetPropertyValue(ctx, sp[-2], sp[-1]);"
+                "    sp[-1] = val;"
+                "    if (unlikely(JS_IsException(val)))"
+                "        goto exception;"
+                "}");
             break;
         case 0x56: // define_class:atom_u8 6 +2,-2
         case 0x57: // define_class_computed:atom_u8 6 +3,-3
