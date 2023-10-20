@@ -32439,6 +32439,7 @@ static const char prolog[] =
     "JSValue JS_NewObjectProto(JSContext *ctx, JSValueConst proto);"
     "JSValue JS_NewSymbolFromAtom(JSContext *ctx, JSAtom descr, int atom_type);"
     "int JS_SetGlobalVar(JSContext *ctx, JSAtom prop, JSValue val, int flag);"
+    "int JS_SetPropertyInternal(JSContext *ctx, JSValueConst this_obj, JSAtom prop, JSValue val, int flags);"
     "int JS_SetPropertyValue(JSContext *ctx, JSValueConst this_obj, JSValue prop, JSValue val, int flags);"
     "JSValue JS_Throw(JSContext *ctx, JSValue obj);"
     "JSValue JS_ThrowReferenceError(JSContext *ctx, const char *fmt, ...);"
@@ -32562,6 +32563,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_NewObjectProto);
     add_symbol(JS_NewSymbolFromAtom);
     add_symbol(JS_SetGlobalVar);
+    add_symbol(JS_SetPropertyInternal);
     add_symbol(JS_SetPropertyValue);
     add_symbol(JS_Throw);
     add_symbol(JS_ThrowReferenceError);
@@ -33275,6 +33277,18 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "*sp++ = val;"
                 "}",
                 /*atom*/get_u32(pc+1));
+            break;
+        case 0x43: // put_field:atom 5 +0,-2
+            dbuf_printf(&dbuf,
+                "{"
+                "int ret = JS_SetPropertyInternal(ctx, sp[-2], %d, sp[-1], %d);"
+                "JS_FreeValue(ctx, sp[-2]);"
+                "sp -= 2;"
+                "if (unlikely(ret < 0))"
+                    "goto exception;"
+                "}",
+                /*atom*/get_u32(pc+1),
+                /*flags*/JS_PROP_THROW_STRICT);
             break;
         case 0x47: // get_array_el:none 1 +1,-2
             dbuf_putstr(&dbuf,
