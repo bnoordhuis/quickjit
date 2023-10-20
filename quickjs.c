@@ -33473,6 +33473,9 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0xBB: // push_i8:i8 2 +1,-0
             dbuf_printf(&dbuf, "*sp++ = JS_NewInt32(ctx, %d);", get_i8(pc+1));
             break;
+        case 0xBC: // push_i16:i16 3 +1,-0
+            dbuf_printf(&dbuf, "*sp++ = JS_NewInt32(ctx, %d);", get_i16(pc+1));
+            break;
         case 0xBE: // fclosure8:const8 2 +1,-0
             dbuf_printf(&dbuf,
                 "*sp++ = js_closure(ctx, JS_DupValue(ctx, cpool(b, %u)), var_refs, sf);"
