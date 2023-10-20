@@ -32426,6 +32426,7 @@ static const char prolog[] =
     "JSValue JS_EvalObject(JSContext *ctx, JSValueConst this_obj, JSValueConst val, int flags, int scope_idx);"
     "JSValue JS_GetGlobalVar(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "JSValue JS_GetProperty(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
+    "int JS_IteratorClose(JSContext *ctx, JSValueConst enum_obj, BOOL is_exception_pending);"
     "JSValue JS_NewArray(JSContext *ctx);"
     "JSValue JS_NewCatchOffset(JSContext *ctx, int32_t val);"
     "JSValue JS_NewObject(JSContext *ctx);"
@@ -32538,6 +32539,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_EvalObject);
     add_symbol(JS_GetGlobalVar);
     add_symbol(JS_GetProperty);
+    add_symbol(JS_IteratorClose);
     add_symbol(JS_NewArray);
     add_symbol(JS_NewCatchOffset);
     add_symbol(JS_NewObject);
@@ -33381,6 +33383,19 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp += 2;",
                 -3 - pc[1]);
             pc += 2;
+            break;
+        case 0x83: // iterator_close:none 1 +0,-3
+            dbuf_putstr(&dbuf,
+                "sp--;" /* drop the catch offset to avoid getting caught by exception */
+                "JS_FreeValue(ctx, sp[-1]);" /* drop the next method */
+                "sp--;"
+                "if (!JS_IsUndefined(sp[-1])) {"
+                "    if (JS_IteratorClose(ctx, sp[-1], FALSE))"
+                "        goto exception;"
+                "    JS_FreeValue(ctx, sp[-1]);"
+                "}"
+                "sp--;");
+            pc++;
             break;
         case 0x97: // typeof:none 1 +1,-1
             dbuf_putstr(&dbuf,
