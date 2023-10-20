@@ -32377,34 +32377,34 @@ static const char prolog[] =
     "typedef unsigned int uint32_t;"
     "typedef uint32_t JSAtom;"
     "enum {"
-    "    FALSE = 0,"
-    "    TRUE = 1,"
+        "FALSE = 0,"
+        "TRUE = 1,"
     "};"
     "enum {"
-    "    JS_TAG_FIRST       = -11,"
-    "    JS_TAG_SYMBOL      = -8,"
-    "    JS_TAG_STRING      = -7,"
-    "    JS_TAG_OBJECT      = -1,"
-    "    JS_TAG_INT         = 0,"
-    "    JS_TAG_BOOL        = 1,"
-    "    JS_TAG_NULL        = 2,"
-    "    JS_TAG_UNDEFINED   = 3,"
-    "    JS_TAG_UNINITIALIZED = 4,"
-    "    JS_TAG_CATCH_OFFSET = 5,"
-    "    JS_TAG_EXCEPTION   = 6,"
-    "    JS_TAG_FLOAT64     = 7,"
+        "JS_TAG_FIRST       = -11,"
+        "JS_TAG_SYMBOL      = -8,"
+        "JS_TAG_STRING      = -7,"
+        "JS_TAG_OBJECT      = -1,"
+        "JS_TAG_INT         = 0,"
+        "JS_TAG_BOOL        = 1,"
+        "JS_TAG_NULL        = 2,"
+        "JS_TAG_UNDEFINED   = 3,"
+        "JS_TAG_UNINITIALIZED = 4,"
+        "JS_TAG_CATCH_OFFSET = 5,"
+        "JS_TAG_EXCEPTION   = 6,"
+        "JS_TAG_FLOAT64     = 7,"
     "};"
     "typedef union JSValueUnion {"
-    "    int32_t int32;"
-    "    double float64;"
-    "    void *ptr;"
+        "int32_t int32;"
+        "double float64;"
+        "void *ptr;"
     "} JSValueUnion;"
     "typedef struct JSValue {"
-    "    JSValueUnion u;"
-    "    int64_t tag;"
+        "JSValueUnion u;"
+        "int64_t tag;"
     "} JSValue;"
     "typedef struct JSRefCountHeader {"
-    "    int ref_count;"
+        "int ref_count;"
     "} JSRefCountHeader;"
     "typedef struct JSContext JSContext;"
     "typedef struct JSFunctionBytecode JSFunctionBytecode;"
@@ -32471,67 +32471,67 @@ static const char prolog[] =
     "void set_value(JSContext *ctx, JSValue *pval, JSValue new_val);"
     "static inline JSAtom __JS_AtomFromUInt32(uint32_t v)"
     "{"
-    "    return v | JS_ATOM_TAG_INT;"
+        "return v | JS_ATOM_TAG_INT;"
     "}"
     "static inline JSValue JS_AtomToString(JSContext *ctx, JSAtom atom)"
     "{"
-    "    return __JS_AtomToValue(ctx, atom, TRUE);"
+        "return __JS_AtomToValue(ctx, atom, TRUE);"
     "}"
     "static inline JSValue JS_AtomToValue(JSContext *ctx, JSAtom atom)"
     "{"
-    "    return __JS_AtomToValue(ctx, atom, FALSE);"
+        "return __JS_AtomToValue(ctx, atom, FALSE);"
     "}"
     "static inline JSValue JS_DupValue(JSContext *ctx, JSValueConst v)"
     "{"
-    "    if (JS_VALUE_HAS_REF_COUNT(v)) {"
-    "        JSRefCountHeader *p = (JSRefCountHeader *)JS_VALUE_GET_PTR(v);"
-    "        p->ref_count++;"
-    "    }"
-    "    return (JSValue)v;"
+        "if (JS_VALUE_HAS_REF_COUNT(v)) {"
+            "JSRefCountHeader *p = (JSRefCountHeader *)JS_VALUE_GET_PTR(v);"
+            "p->ref_count++;"
+        "}"
+        "return (JSValue)v;"
     "}"
     "static inline void JS_FreeValue(JSContext *ctx, JSValue v)"
     "{"
-    "    if (JS_VALUE_HAS_REF_COUNT(v)) {"
-    "        JSRefCountHeader *p = (JSRefCountHeader *)JS_VALUE_GET_PTR(v);"
-    "        if (--p->ref_count <= 0) {"
-    "            __JS_FreeValue(ctx, v);"
-    "        }"
-    "    }"
+        "if (JS_VALUE_HAS_REF_COUNT(v)) {"
+            "JSRefCountHeader *p = (JSRefCountHeader *)JS_VALUE_GET_PTR(v);"
+            "if (--p->ref_count <= 0) {"
+                "__JS_FreeValue(ctx, v);"
+            "}"
+        "}"
     "}"
     "static inline JS_BOOL JS_IsException(JSValueConst v)"
     "{"
-    "    return js_unlikely(JS_VALUE_GET_TAG(v) == JS_TAG_EXCEPTION);"
+        "return js_unlikely(JS_VALUE_GET_TAG(v) == JS_TAG_EXCEPTION);"
     "}"
     "static inline JS_BOOL JS_IsNull(JSValueConst v)"
     "{"
-    "    return JS_VALUE_GET_TAG(v) == JS_TAG_NULL;"
+        "return JS_VALUE_GET_TAG(v) == JS_TAG_NULL;"
     "}"
     "static inline JS_BOOL JS_IsObject(JSValueConst v)"
     "{"
-    "    return JS_VALUE_GET_TAG(v) == JS_TAG_OBJECT;"
+        "return JS_VALUE_GET_TAG(v) == JS_TAG_OBJECT;"
     "}"
     "static inline JS_BOOL JS_IsUndefined(JSValueConst v)"
     "{"
-    "    return JS_VALUE_GET_TAG(v) == JS_TAG_UNDEFINED;"
+        "return JS_VALUE_GET_TAG(v) == JS_TAG_UNDEFINED;"
     "}"
     "static js_force_inline JSValue JS_NewBool(JSContext *ctx, JS_BOOL val)"
     "{"
-    "    return JS_MKVAL(JS_TAG_BOOL, (val != 0));"
+        "return JS_MKVAL(JS_TAG_BOOL, (val != 0));"
     "}"
     "static js_force_inline JSValue JS_NewInt32(JSContext *ctx, int32_t val)"
     "{"
-    "    return JS_MKVAL(JS_TAG_INT, val);"
+        "return JS_MKVAL(JS_TAG_INT, val);"
     "}"
     "static inline JSValue __JS_NewFloat64(JSContext *ctx, double d)"
     "{"
-    "    JSValue v;"
-    "    v.tag = JS_TAG_FLOAT64;"
-    "    v.u.float64 = d;"
-    "    return v;"
+        "JSValue v;"
+        "v.tag = JS_TAG_FLOAT64;"
+        "v.u.float64 = d;"
+        "return v;"
     "}"
     "static inline JS_BOOL JS_IsUninitialized(JSValueConst v)"
     "{"
-    "    return js_unlikely(JS_VALUE_GET_TAG(v) == JS_TAG_UNINITIALIZED);"
+        "return js_unlikely(JS_VALUE_GET_TAG(v) == JS_TAG_UNINITIALIZED);"
     "}"
     ;
 
@@ -32615,51 +32615,51 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     dbuf_printf(&dbuf,
         "static inline JSValue cpool(JSFunctionBytecode *b, int i)"
         "{"
-        "    JSValue **pool = (void *) b + %d;"
-        "    return (*pool)[i];"
+            "JSValue **pool = (void *) b + %d;"
+            "return (*pool)[i];"
         "}"
         "static inline JSValue **pvalue(JSVarRef *ref)"
         "{"
-        "    return (void *) ref + %d;"
+            "return (void *) ref + %d;"
         "}"
         "static inline void set_cur_pc(JSStackFrame *sf, void *pc)"
         "{"
-        "    void **cur_pc = (void *) sf + %d;"
-        "    *cur_pc = pc;"
+            "void **cur_pc = (void *) sf + %d;"
+            "*cur_pc = pc;"
         "}"
         "static inline JSFunctionBytecode *function_bytecode(JSObject *p)"
         "{"
-        "    void **field = (void *) p + %d;"
-        "    return *field;"
+            "void **field = (void *) p + %d;"
+            "return *field;"
         "}"
         "static inline JSObject *home_object(JSObject *p)"
         "{"
-        "    void **field = (void *) p + %d;"
-        "    return *field;"
+            "void **field = (void *) p + %d;"
+            "return *field;"
         "}"
         "static inline int js_poll_interrupts(JSContext *ctx)"
         "{"
-        "    int *interrupt_counter = (void *) ctx + %d;"
-        "    if (unlikely(--*interrupt_counter <= 0)) {"
-        "        return __js_poll_interrupts(ctx);"
-        "    } else {"
-        "        return 0;"
-        "    }"
+            "int *interrupt_counter = (void *) ctx + %d;"
+            "if (unlikely(--*interrupt_counter <= 0)) {"
+                "return __js_poll_interrupts(ctx);"
+            "} else {"
+                "return 0;"
+            "}"
         "}"
         "JSValue jitcode(JSContext *ctx, JSValueConst func_obj,"
-        "                JSValueConst this_obj, JSValueConst new_target,"
-        "                int argc, JSValue *argv, int flags,"
-        "                struct JitAux *aux)"
+                        "JSValueConst this_obj, JSValueConst new_target,"
+                        "int argc, JSValue *argv, int flags,"
+                        "struct JitAux *aux)"
         "{"
-        "    JSContext *caller_ctx = aux->caller_ctx;"
-        "    JSVarRef **var_refs = aux->var_refs;"
-        "    JSValue *var_buf = aux->var_buf;"
-        "    JSValue *arg_buf = aux->arg_buf;"
-        "    JSObject *p = aux->p;"
-        "    JSFunctionBytecode *b = function_bytecode(p);"
-        "    JSStackFrame *sf = aux->sf;"
-        "    JSValue *sp = aux->sp;"
-        "    JSValue ret_val;",
+            "JSContext *caller_ctx = aux->caller_ctx;"
+            "JSVarRef **var_refs = aux->var_refs;"
+            "JSValue *var_buf = aux->var_buf;"
+            "JSValue *arg_buf = aux->arg_buf;"
+            "JSObject *p = aux->p;"
+            "JSFunctionBytecode *b = function_bytecode(p);"
+            "JSStackFrame *sf = aux->sf;"
+            "JSValue *sp = aux->sp;"
+            "JSValue ret_val;",
         (int) offsetof(JSFunctionBytecode, cpool),
         (int) offsetof(JSVarRef, pvalue),
         (int) offsetof(JSStackFrame, cur_pc),
@@ -32693,7 +32693,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "JSValue bfunc = JS_DupValue(ctx, cpool(b, %u));"
                 "*sp++ = js_closure(ctx, bfunc, var_refs, sf);"
                 "if (unlikely(JS_IsException(sp[-1])))"
-                "    goto exception;"
+                    "goto exception;"
                 "}",
                 get_u32(pc+1));
             break;
@@ -32707,7 +32707,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "{"
                 "JSValue val = JS_NewSymbolFromAtom(ctx, %u, %d);"
                 "if (JS_IsException(val))"
-                "    goto exception;"
+                    "goto exception;"
                 "*sp++ = val;"
                 "}",
                 get_u32(pc+1), JS_ATOM_TYPE_PRIVATE);
@@ -32724,16 +32724,16 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             } else {
                 dbuf_printf(&dbuf,
                     "if (JS_TAG_OBJECT == JS_VALUE_GET_TAG(this_obj)) {"
-                    "    *sp++ = JS_DupValue(ctx, this_obj);"
+                        "*sp++ = JS_DupValue(ctx, this_obj);"
                     "} else if (JS_TAG_NULL == JS_VALUE_GET_TAG(this_obj) ||"
-                    "           JS_TAG_UNDEFINED == JS_VALUE_GET_TAG(this_obj)) {"
-                    "    JSValue *global_obj = (void *) ctx + %d;"
-                    "    *sp++ = JS_DupValue(ctx, *global_obj);"
+                               "JS_TAG_UNDEFINED == JS_VALUE_GET_TAG(this_obj)) {"
+                        "JSValue *global_obj = (void *) ctx + %d;"
+                        "*sp++ = JS_DupValue(ctx, *global_obj);"
                     "} else {"
-                    "    JSValue val = JS_ToObject(ctx, this_obj);"
-                    "    if (JS_IsException(val))"
-                    "        goto exception;"
-                    "    *sp++ = JS_DupValue(ctx, val);"
+                        "JSValue val = JS_ToObject(ctx, this_obj);"
+                        "if (JS_IsException(val))"
+                            "goto exception;"
+                        "*sp++ = JS_DupValue(ctx, val);"
                     "}",
                     (int) offsetof(JSContext, global_obj));
             }
@@ -32748,7 +32748,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_putstr(&dbuf,
                 "*sp++ = JS_NewObject(ctx);"
                 "if (unlikely(JS_IsException(sp[-1])))"
-                "    goto exception;");
+                    "goto exception;");
             break;
         case 0x0C: // special_object:u8 2 +1,-0
             switch (pc[1]) {
@@ -32756,7 +32756,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 dbuf_putstr(&dbuf,
                     "*sp++ = js_build_arguments(ctx, argc, (JSValueConst *)argv);"
                     "if (unlikely(JS_IsException(sp[-1])))"
-                    "    goto exception;");
+                        "goto exception;");
                 break;
             case OP_SPECIAL_OBJECT_MAPPED_ARGUMENTS:
                 dbuf_printf(&dbuf,
@@ -32765,7 +32765,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                     "if (n > argc) n = argc;"
                     "*sp++ = js_build_mapped_arguments(ctx, argc, (JSValueConst *)argv, sf, n);"
                     "if (unlikely(JS_IsException(sp[-1])))"
-                    "    goto exception;"
+                        "goto exception;"
                     "}",
                     b->arg_count);
                 break;
@@ -32784,24 +32784,24 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             case OP_SPECIAL_OBJECT_HOME_OBJECT:
                 dbuf_putstr(&dbuf,
                     "{"
-                    "    JSObject *p1 = home_object(p);"
-                    "    if (unlikely(!p1))"
-                    "        *sp++ = JS_UNDEFINED;"
-                    "    else"
-                    "        *sp++ = JS_DupValue(ctx, JS_MKPTR(JS_TAG_OBJECT, p1));"
+                        "JSObject *p1 = home_object(p);"
+                        "if (unlikely(!p1))"
+                            "*sp++ = JS_UNDEFINED;"
+                        "else "
+                            "*sp++ = JS_DupValue(ctx, JS_MKPTR(JS_TAG_OBJECT, p1));"
                     "}");
                 break;
             case OP_SPECIAL_OBJECT_VAR_OBJECT:
                 dbuf_putstr(&dbuf,
                     "*sp++ = JS_NewObjectProto(ctx, JS_NULL);"
                     "if (unlikely(JS_IsException(sp[-1])))"
-                    "    goto exception;");
+                        "goto exception;");
                 break;
             case OP_SPECIAL_OBJECT_IMPORT_META:
                 dbuf_putstr(&dbuf,
                     "*sp++ = js_import_meta(ctx);"
                     "if (unlikely(JS_IsException(sp[-1])))"
-                    "    goto exception;");
+                        "goto exception;");
                 break;
             default:
                 abort();
@@ -32811,7 +32811,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_printf(&dbuf,
                 "*sp++ = js_build_rest(ctx, %d, argc, (JSValueConst *)argv);"
                 "if (unlikely(JS_IsException(sp[-1])))"
-                "    goto exception;",
+                    "goto exception;",
                 /*first*/get_u16(pc+1));
             break;
         case 0x0E: // drop:none 1 +0,-1
@@ -32982,12 +32982,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "JSValue *call_argv = sp - call_argc;"
                 "set_cur_pc(sf, (void *) %p);"
                 "ret_val = JS_CallConstructorInternal(ctx, call_argv[-2],"
-                "                                     call_argv[-1],"
-                "                                     call_argc, call_argv, 0);"
+                                                     "call_argv[-1],"
+                                                     "call_argc, call_argv, 0);"
                 "if (unlikely(JS_IsException(ret_val)))"
-                "    goto exception;"
+                    "goto exception;"
                 "for(int i = -2; i < call_argc; i++)"
-                "    JS_FreeValue(ctx, call_argv[i]);"
+                    "JS_FreeValue(ctx, call_argv[i]);"
                 "sp -= call_argc + 2;"
                 "*sp++ = ret_val;"
                 "}",
@@ -33002,16 +33002,16 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "{"
                 "JSValue *call_argv = sp - %d;"
                 "ret_val = JS_CallInternal(ctx, call_argv[-1], JS_UNDEFINED,"
-                "                          JS_UNDEFINED, %d, call_argv, 0);"
+                                          "JS_UNDEFINED, %d, call_argv, 0);"
                 "if (unlikely(JS_IsException(ret_val)))"
-                "    goto exception;",
+                    "goto exception;",
                 call_argc, call_argc);
             if (op == OP_tail_call) {
                 dbuf_putstr(&dbuf, "goto done;");
             } else {
                 dbuf_printf(&dbuf,
                     "for(int i = -1; i < %d; i++)"
-                    "    JS_FreeValue(ctx, call_argv[i]);"
+                        "JS_FreeValue(ctx, call_argv[i]);"
                     "sp -= %d;"
                     "*sp++ = ret_val;",
                     call_argc,
@@ -33027,16 +33027,16 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "JSValue *call_argv = sp - call_argc;"
                 "set_cur_pc(sf, (void *) %p);"
                 "ret_val = JS_CallInternal(ctx, call_argv[-1], call_argv[-2],"
-                "                          JS_UNDEFINED, call_argc, call_argv, 0);"
+                                          "JS_UNDEFINED, call_argc, call_argv, 0);"
                 "if (unlikely(JS_IsException(ret_val)))"
-                "    goto exception;",
+                    "goto exception;",
                 get_u16(pc+1), /*next opcode*/pc+3);
             if (op == OP_tail_call_method) {
                 dbuf_putstr(&dbuf, "goto done;");
             } else {
                 dbuf_putstr(&dbuf,
                     "for(int i = -2; i < call_argc; i++)"
-                    "    JS_FreeValue(ctx, call_argv[i]);"
+                        "JS_FreeValue(ctx, call_argv[i]);"
                     "sp -= call_argc + 2;"
                     "*sp++ = ret_val;");
             }
@@ -33048,15 +33048,15 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "int call_argc = %d;"
                 "ret_val = JS_NewArray(ctx);"
                 "if (unlikely(JS_IsException(ret_val)))"
-                "    goto exception;"
+                    "goto exception;"
                 "JSValue *call_argv = sp - call_argc;"
                 "for(int i = 0; i < call_argc; i++) {"
-                "    int ret = JS_DefinePropertyValue(ctx, ret_val, __JS_AtomFromUInt32(i), call_argv[i], %d);"
-                "    call_argv[i] = JS_UNDEFINED;"
-                "    if (ret < 0) {"
-                "        JS_FreeValue(ctx, ret_val);"
-                "        goto exception;"
-                "    }"
+                    "int ret = JS_DefinePropertyValue(ctx, ret_val, __JS_AtomFromUInt32(i), call_argv[i], %d);"
+                    "call_argv[i] = JS_UNDEFINED;"
+                    "if (ret < 0) {"
+                        "JS_FreeValue(ctx, ret_val);"
+                        "goto exception;"
+                    "}"
                 "}"
                 "sp -= call_argc;"
                 "*sp++ = ret_val;"
@@ -33067,7 +33067,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_printf(&dbuf,
                 "ret_val = js_function_apply(ctx, sp[-3], 2, (JSValueConst *)&sp[-2], %d);"
                 "if (unlikely(JS_IsException(ret_val)))"
-                "    goto exception;"
+                    "goto exception;"
                 "JS_FreeValue(ctx, sp[-3]);"
                 "JS_FreeValue(ctx, sp[-2]);"
                 "JS_FreeValue(ctx, sp[-1]);"
@@ -33086,32 +33086,32 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0x2A: // check_ctor_return:none 1 +2,-1
             dbuf_putstr(&dbuf,
                 "if (!JS_IsObject(sp[-1])) {"
-                "    if (!JS_IsUndefined(sp[-1])) {"
-                "        JS_ThrowTypeError(caller_ctx, \"derived class constructor must return an object or undefined\");"
-                "        goto exception;"
-                "    }"
-                "    sp[0] = JS_TRUE;"
+                    "if (!JS_IsUndefined(sp[-1])) {"
+                        "JS_ThrowTypeError(caller_ctx, \"derived class constructor must return an object or undefined\");"
+                        "goto exception;"
+                    "}"
+                    "sp[0] = JS_TRUE;"
                 "} else {"
-                "    sp[0] = JS_FALSE;"
+                    "sp[0] = JS_FALSE;"
                 "}"
                 "sp++;");
             break;
         case 0x2B: // check_ctor:none 1 +0,-0
             dbuf_putstr(&dbuf,
                 "if (JS_IsUndefined(new_target)) {"
-                "    JS_ThrowTypeError(ctx, \"class constructors must be invoked with 'new'\");"
-                "    goto exception;"
+                    "JS_ThrowTypeError(ctx, \"class constructors must be invoked with 'new'\");"
+                    "goto exception;"
                 "}");
             break;
         case 0x2C: // check_brand:none 1 +2,-2
             dbuf_putstr(&dbuf,
                 "if (JS_CheckBrand(ctx, sp[-2], sp[-1]) < 0)"
-                "    goto exception;");
+                    "goto exception;");
             break;
         case 0x2D: // add_brand:none 1 +0,-2
             dbuf_putstr(&dbuf,
                 "if (JS_AddBrand(ctx, sp[-2], sp[-1]) < 0)"
-                "    goto exception;"
+                    "goto exception;"
                 "JS_FreeValue(ctx, sp[-2]);"
                 "JS_FreeValue(ctx, sp[-1]);"
                 "sp -= 2;");
@@ -33160,20 +33160,20 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "JSValue *eval_obj = (void *) ctx + %d;"
                 "set_cur_pc(sf, (void *) %p);"
                 "if (js_same_value(ctx, call_argv[-1], *eval_obj)) {"
-                "    if (call_argc >= 1)"
-                "        obj = call_argv[0];"
-                "    else"
-                "        obj = JS_UNDEFINED;"
-                "    ret_val = JS_EvalObject(ctx, JS_UNDEFINED, obj,"
-                "                            %d, scope_idx);"
+                    "if (call_argc >= 1)"
+                        "obj = call_argv[0];"
+                    "else "
+                        "obj = JS_UNDEFINED;"
+                    "ret_val = JS_EvalObject(ctx, JS_UNDEFINED, obj,"
+                                            "%d, scope_idx);"
                 "} else {"
-                "    ret_val = JS_CallInternal(ctx, call_argv[-1], JS_UNDEFINED,"
-                "                              JS_UNDEFINED, call_argc, call_argv, 0);"
+                    "ret_val = JS_CallInternal(ctx, call_argv[-1], JS_UNDEFINED,"
+                                              "JS_UNDEFINED, call_argc, call_argv, 0);"
                 "}"
                 "if (unlikely(JS_IsException(ret_val)))"
-                "    goto exception;"
+                    "goto exception;"
                 "for(int i = -1; i < call_argc; i++)"
-                "    JS_FreeValue(ctx, call_argv[i]);"
+                    "JS_FreeValue(ctx, call_argv[i]);"
                 "sp -= call_argc + 1;"
                 "*sp++ = ret_val;"
                 "}",
@@ -33188,7 +33188,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "{"
                 "int ret = JS_CheckGlobalVar(ctx, %d);"
                 "if (ret < 0)"
-                "    goto exception;"
+                    "goto exception;"
                 "*sp++ = JS_NewBool(ctx, ret);"
                 "}",
                 /*atom*/get_u32(pc+1));
@@ -33199,7 +33199,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "{"
                 "JSValue val = JS_GetGlobalVar(ctx, %d, %d);"
                 "if (unlikely(JS_IsException(val)))"
-                "    goto exception;"
+                    "goto exception;"
                 "*sp++ = val;"
                 "}",
                 /*atom*/get_u32(pc+1), op-0x37);
@@ -33211,7 +33211,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "int ret = JS_SetGlobalVar(ctx, %d, sp[-1], %d);"
                 "sp--;"
                 "if (unlikely(ret < 0))"
-                "    goto exception;"
+                    "goto exception;"
                 "}",
                 /*atom*/get_u32(pc+1), op-0x39);
             break;
@@ -33220,32 +33220,32 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_printf(&dbuf,
                 "{" /* sp[-2] is JS_TRUE or JS_FALSE */
                 "if (unlikely(!JS_VALUE_GET_INT(sp[-2]))) {"
-                "    JS_ThrowReferenceErrorNotDefined(ctx, %d);"
-                "    goto exception;"
+                    "JS_ThrowReferenceErrorNotDefined(ctx, %d);"
+                    "goto exception;"
                 "}"
                 "int ret = JS_SetGlobalVar(ctx, %d, sp[-1], 2);"
                 "sp -= 2;"
                 "if (unlikely(ret < 0))"
-                "    goto exception;"
+                    "goto exception;"
                 "}",
                 idx, idx);
             break;
         case 0x3E: // define_var:atom_u8 6 +0,-0
             dbuf_printf(&dbuf,
                 "if (JS_DefineGlobalVar(ctx, %d, %d))"
-                "    goto exception;",
+                    "goto exception;",
                 /*atom*/get_u32(pc+1), /*flags*/pc[5]);
             break;
         case 0x3F: // check_define_var:atom_u8 6 +0,-0
             dbuf_printf(&dbuf,
                 "if (JS_CheckDefineGlobalVar(ctx, %d, %d))"
-                "    goto exception;",
+                    "goto exception;",
                 /*atom*/get_u32(pc+1), /*flags*/pc[5]);
             break;
         case 0x40: // define_func:atom_u8 6 +0,-1
             dbuf_printf(&dbuf,
                 "if (JS_DefineGlobalFunction(ctx, %d, sp[-1], %d))"
-                "    goto exception;"
+                    "goto exception;"
                 "JS_FreeValue(ctx, sp[-1]);"
                 "sp--;",
                 /*atom*/get_u32(pc+1), /*flags*/pc[5]);
@@ -33255,7 +33255,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "{"
                 "JSValue val = JS_GetProperty(ctx, sp[-1], %d);"
                 "if (unlikely(JS_IsException(val)))"
-                "    goto exception;"
+                    "goto exception;"
                 "JS_FreeValue(ctx, sp[-1]);"
                 "sp[-1] = val;"
                 "}",
@@ -33266,7 +33266,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "{"
                 "JSValue val = JS_GetProperty(ctx, sp[-1], %d);"
                 "if (unlikely(JS_IsException(val)))"
-                "    goto exception;"
+                    "goto exception;"
                 "*sp++ = val;"
                 "}",
                 /*atom*/get_u32(pc+1));
@@ -33274,17 +33274,17 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0x47: // get_array_el:none 1 +1,-2
             dbuf_putstr(&dbuf,
                 "{"
-                "    JSValue val = JS_GetPropertyValue(ctx, sp[-2], sp[-1]);"
-                "    sp[-1] = val;"
-                "    if (unlikely(JS_IsException(val)))"
-                "        goto exception;"
+                    "JSValue val = JS_GetPropertyValue(ctx, sp[-2], sp[-1]);"
+                    "sp[-1] = val;"
+                    "if (unlikely(JS_IsException(val)))"
+                        "goto exception;"
                 "}");
             break;
         case 0x56: // define_class:atom_u8 6 +2,-2
         case 0x57: // define_class_computed:atom_u8 6 +3,-3
             dbuf_printf(&dbuf,
                 "if (js_op_define_class(ctx, sp, %d, %d, var_refs, sf, %d) < 0)"
-                "    goto exception;",
+                    "goto exception;",
                 /*atom*/get_u32(pc+1),
                 /*class_flags*/pc[5],
                 op == OP_define_class_computed);
@@ -33297,9 +33297,9 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             idx = get_u16(pc+1);
             dbuf_printf(&dbuf,
                 "if (unlikely(JS_IsUninitialized(var_buf[%d]))) {"
-                "    JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, FALSE);"
-                "    set_cur_pc(sf, (void *) %p);"
-                "    goto exception;"
+                    "JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, FALSE);"
+                    "set_cur_pc(sf, (void *) %p);"
+                    "goto exception;"
                 "}"
                 "sp[0] = JS_DupValue(ctx, var_buf[%d]);"
                 "sp++;",
@@ -33309,9 +33309,9 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             idx = get_u16(pc+1);
             dbuf_printf(&dbuf,
                 "if (unlikely(JS_IsUninitialized(var_buf[%d]))) {"
-                "    JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, FALSE);"
-                "    set_cur_pc(sf, (void *) %p);"
-                "    goto exception;"
+                    "JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, FALSE);"
+                    "set_cur_pc(sf, (void *) %p);"
+                    "goto exception;"
                 "}"
                 "set_value(ctx, &var_buf[%d], sp[-1]);"
                 "sp--;",
@@ -33323,8 +33323,8 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "{"
                 "JSValue val = **pvalue(var_refs[%d]);"
                 "if (unlikely(JS_IsUninitialized(val))) {"
-                "    JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, TRUE);"
-                "    goto exception;"
+                    "JS_ThrowReferenceErrorUninitialized2(ctx, b, %d, TRUE);"
+                    "goto exception;"
                 "}"
                 "sp[0] = JS_DupValue(ctx, val);"
                 "sp++;"
@@ -33339,34 +33339,34 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0x71: // to_propkey2:none 1 +2,-2
             dbuf_putstr(&dbuf,
                 "if (unlikely(JS_IsUndefined(sp[-2]) || JS_IsNull(sp[-2]))) {"
-                "    JS_ThrowTypeError(ctx, \"value has no property\");"
-                "    goto exception;"
+                    "JS_ThrowTypeError(ctx, \"value has no property\");"
+                    "goto exception;"
                 "}"
                 "switch (JS_VALUE_GET_TAG(sp[-1])) {"
                 "case JS_TAG_INT:"
                 "case JS_TAG_STRING:"
                 "case JS_TAG_SYMBOL:"
-                "    break;"
+                    "break;"
                 "default:"
-                "    ret_val = JS_ToPropertyKey(ctx, sp[-1]);"
-                "    if (JS_IsException(ret_val))"
-                "        goto exception;"
-                "    JS_FreeValue(ctx, sp[-1]);"
-                "    sp[-1] = ret_val;"
-                "    break;"
+                    "ret_val = JS_ToPropertyKey(ctx, sp[-1]);"
+                    "if (JS_IsException(ret_val))"
+                        "goto exception;"
+                    "JS_FreeValue(ctx, sp[-1]);"
+                    "sp[-1] = ret_val;"
+                    "break;"
                 "}");
             break;
         case 0x7D: // for_of_start:none 1 +3,-1
             dbuf_putstr(&dbuf,
                 "if (js_for_of_start(ctx, sp, FALSE))"
-                "    goto exception;"
+                    "goto exception;"
                 "sp += 1;"
                 "*sp++ = JS_NewCatchOffset(ctx, 0);");
             break;
         case 0x80: // for_of_next:u8 2 +5,-3
             dbuf_printf(&dbuf,
                 "if (js_for_of_next(ctx, sp, %d))"
-                "    goto exception;"
+                    "goto exception;"
                 "sp += 2;",
                 -3 - pc[1]);
             break;
@@ -33376,9 +33376,9 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "JS_FreeValue(ctx, sp[-1]);" /* drop the next method */
                 "sp--;"
                 "if (!JS_IsUndefined(sp[-1])) {"
-                "    if (JS_IteratorClose(ctx, sp[-1], FALSE))"
-                "        goto exception;"
-                "    JS_FreeValue(ctx, sp[-1]);"
+                    "if (JS_IteratorClose(ctx, sp[-1], FALSE))"
+                        "goto exception;"
+                    "JS_FreeValue(ctx, sp[-1]);"
                 "}"
                 "sp--;");
             break;
@@ -33386,19 +33386,19 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             gensym++;
             dbuf_printf(&dbuf,
                 "{"
-                "    JSValue op1;"
-                "    int val;"
-                "    op1 = sp[-1];"
-                "    if (JS_VALUE_GET_TAG(op1) == JS_TAG_INT) {"
-                "        val = JS_VALUE_GET_INT(op1);"
-                "        if (unlikely(val == %d))"
-                "            goto inc_slow%d;"
-                "        sp[-1] = JS_NewInt32(ctx, val + 1);"
-                "    } else {"
-                "    inc_slow%d:"
-                "        if (js_unary_arith_slow(ctx, sp, %d))"
-                "            goto exception;"
-                "    }"
+                    "JSValue op1;"
+                    "int val;"
+                    "op1 = sp[-1];"
+                    "if (JS_VALUE_GET_TAG(op1) == JS_TAG_INT) {"
+                        "val = JS_VALUE_GET_INT(op1);"
+                        "if (unlikely(val == %d))"
+                            "goto inc_slow%d;"
+                        "sp[-1] = JS_NewInt32(ctx, val + 1);"
+                    "} else {"
+                    "inc_slow%d:"
+                        "if (js_unary_arith_slow(ctx, sp, %d))"
+                            "goto exception;"
+                    "}"
                 "}",
                 INT32_MAX, gensym, gensym, op);
             break;
@@ -33406,7 +33406,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0x91: // post_inc:none 1 +2,-1
             dbuf_printf(&dbuf,
                 "if (js_post_inc_slow(ctx, sp, %d))"
-                "    goto exception;"
+                    "goto exception;"
                 "sp++;",
                 op);
             break;
@@ -33415,21 +33415,21 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             idx = pc[1];
             dbuf_printf(&dbuf,
                 "{"
-                "    JSValue op1;"
-                "    int val;"
-                "    op1 = var_buf[%d];"
-                "    if (JS_VALUE_GET_TAG(op1) == JS_TAG_INT) {"
-                "        val = JS_VALUE_GET_INT(op1);"
-                "        if (unlikely(val == %d))"
-                "            goto inc_loc_slow%d;"
-                "        var_buf[%d] = JS_NewInt32(ctx, val + 1);"
-                "    } else {"
-                "    inc_loc_slow%d:"
-                "        op1 = JS_DupValue(ctx, op1);"
-                "        if (js_unary_arith_slow(ctx, &op1 + 1, %d))"
-                "            goto exception;"
-                "        set_value(ctx, &var_buf[%d], op1);"
-                "    }"
+                    "JSValue op1;"
+                    "int val;"
+                    "op1 = var_buf[%d];"
+                    "if (JS_VALUE_GET_TAG(op1) == JS_TAG_INT) {"
+                        "val = JS_VALUE_GET_INT(op1);"
+                        "if (unlikely(val == %d))"
+                            "goto inc_loc_slow%d;"
+                        "var_buf[%d] = JS_NewInt32(ctx, val + 1);"
+                    "} else {"
+                    "inc_loc_slow%d:"
+                        "op1 = JS_DupValue(ctx, op1);"
+                        "if (js_unary_arith_slow(ctx, &op1 + 1, %d))"
+                            "goto exception;"
+                        "set_value(ctx, &var_buf[%d], op1);"
+                    "}"
                 "}",
                 idx, INT32_MAX, gensym, idx, gensym, OP_inc, idx);
             break;
@@ -33484,79 +33484,79 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             gensym++;
             dbuf_printf(&dbuf,
                 "{"
-                "    JSValue op1, op2;"
-                "    op1 = sp[-2];"
-                "    op2 = sp[-1];"
-                "    if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
-                "        int64_t r;"
-                "        r = (int64_t)JS_VALUE_GET_INT(op1) + JS_VALUE_GET_INT(op2);"
-                "        if (unlikely((int)r != r))"
-                "            goto add_slow%d;"
-                "        sp[-2] = JS_NewInt32(ctx, r);"
-                "        sp--;"
-                "    } else if (JS_VALUE_IS_BOTH_FLOAT(op1, op2)) {"
-                "        sp[-2] = __JS_NewFloat64(ctx, JS_VALUE_GET_FLOAT64(op1) +"
-                "                                 JS_VALUE_GET_FLOAT64(op2));"
-                "        sp--;"
-                "    } else {"
-                "    add_slow%d:"
-                "        if (js_add_slow(ctx, sp)) {"
-                "            set_cur_pc(sf, (void *) %p);"
-                "            goto exception;"
-                "        }"
-                "        sp--;"
-                "    }"
+                    "JSValue op1, op2;"
+                    "op1 = sp[-2];"
+                    "op2 = sp[-1];"
+                    "if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                        "int64_t r;"
+                        "r = (int64_t)JS_VALUE_GET_INT(op1) + JS_VALUE_GET_INT(op2);"
+                        "if (unlikely((int)r != r))"
+                            "goto add_slow%d;"
+                        "sp[-2] = JS_NewInt32(ctx, r);"
+                        "sp--;"
+                    "} else if (JS_VALUE_IS_BOTH_FLOAT(op1, op2)) {"
+                        "sp[-2] = __JS_NewFloat64(ctx, JS_VALUE_GET_FLOAT64(op1) +"
+                                                 "JS_VALUE_GET_FLOAT64(op2));"
+                        "sp--;"
+                    "} else {"
+                    "add_slow%d:"
+                        "if (js_add_slow(ctx, sp)) {"
+                            "set_cur_pc(sf, (void *) %p);"
+                            "goto exception;"
+                        "}"
+                        "sp--;"
+                    "}"
                 "}", gensym, gensym, pc);
             break;
         case 0x9E: // sub:none 1 +1,-2
             gensym++;
             dbuf_printf(&dbuf,
                 "{"
-                "    JSValue op1, op2;"
-                "    op1 = sp[-2];"
-                "    op2 = sp[-1];"
-                "    if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
-                "        int64_t r;"
-                "        r = (int64_t)JS_VALUE_GET_INT(op1) - JS_VALUE_GET_INT(op2);"
-                "        if (unlikely((int)r != r))"
-                "            goto binary_arith_slow%d;"
-                "        sp[-2] = JS_NewInt32(ctx, r);"
-                "        sp--;"
-                "    } else if (JS_VALUE_IS_BOTH_FLOAT(op1, op2)) {"
-                "        sp[-2] = __JS_NewFloat64(ctx, JS_VALUE_GET_FLOAT64(op1) -"
-                "                                 JS_VALUE_GET_FLOAT64(op2));"
-                "        sp--;"
-                "    } else {"
-                "        goto binary_arith_slow%d;"
-                "    }"
+                    "JSValue op1, op2;"
+                    "op1 = sp[-2];"
+                    "op2 = sp[-1];"
+                    "if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                        "int64_t r;"
+                        "r = (int64_t)JS_VALUE_GET_INT(op1) - JS_VALUE_GET_INT(op2);"
+                        "if (unlikely((int)r != r))"
+                            "goto binary_arith_slow%d;"
+                        "sp[-2] = JS_NewInt32(ctx, r);"
+                        "sp--;"
+                    "} else if (JS_VALUE_IS_BOTH_FLOAT(op1, op2)) {"
+                        "sp[-2] = __JS_NewFloat64(ctx, JS_VALUE_GET_FLOAT64(op1) -"
+                                                 "JS_VALUE_GET_FLOAT64(op2));"
+                        "sp--;"
+                    "} else {"
+                        "goto binary_arith_slow%d;"
+                    "}"
                 "}"
                 "if (0) {" // HACK
                 "binary_arith_slow%d:"
-                "    if (js_binary_arith_slow(ctx, sp, %d)) {"
-                "        set_cur_pc(sf, (void *) %p);"
-                "        goto exception;"
-                "    }"
-                "    sp--;"
+                    "if (js_binary_arith_slow(ctx, sp, %d)) {"
+                        "set_cur_pc(sf, (void *) %p);"
+                        "goto exception;"
+                    "}"
+                    "sp--;"
                 "}", gensym, gensym, gensym, op, pc);
             break;
         case 0xA0: // shl:none 1 +1,-2
             dbuf_printf(&dbuf,
                 "{"
-                "    JSValue op1, op2;"
-                "    op1 = sp[-2];"
-                "    op2 = sp[-1];"
-                "    if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
-                "        uint32_t v1, v2;"
-                "        v1 = JS_VALUE_GET_INT(op1);"
-                "        v2 = JS_VALUE_GET_INT(op2);"
-                "        v2 &= 0x1f;"
-                "        sp[-2] = JS_NewInt32(ctx, v1 << v2);"
-                "        sp--;"
-                "    } else {"
-                "        if (js_binary_logic_slow(ctx, sp, %d))"
-                "            goto exception;"
-                "        sp--;"
-                "    }"
+                    "JSValue op1, op2;"
+                    "op1 = sp[-2];"
+                    "op2 = sp[-1];"
+                    "if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                        "uint32_t v1, v2;"
+                        "v1 = JS_VALUE_GET_INT(op1);"
+                        "v2 = JS_VALUE_GET_INT(op2);"
+                        "v2 &= 0x1f;"
+                        "sp[-2] = JS_NewInt32(ctx, v1 << v2);"
+                        "sp--;"
+                    "} else {"
+                        "if (js_binary_logic_slow(ctx, sp, %d))"
+                            "goto exception;"
+                        "sp--;"
+                    "}"
                 "}",
                 op);
             break;
@@ -33571,14 +33571,14 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "op1 = sp[-2];"
                 "op2 = sp[-1];"
                 "if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
-                "    sp[-2] = JS_NewBool(ctx, JS_VALUE_GET_INT(op1) %s JS_VALUE_GET_INT(op2));"
-                "    sp--;"
+                    "sp[-2] = JS_NewBool(ctx, JS_VALUE_GET_INT(op1) %s JS_VALUE_GET_INT(op2));"
+                    "sp--;"
                 "} else {"
-                "    if (js_relational_slow(ctx, sp, %d)) {"
-                "        set_cur_pc(sf, (void *) %p);"
-                "        goto exception;"
-                "    }"
-                "    sp--;"
+                    "if (js_relational_slow(ctx, sp, %d)) {"
+                        "set_cur_pc(sf, (void *) %p);"
+                        "goto exception;"
+                    "}"
+                    "sp--;"
                 "}"
                 "}",
                 binops[op-0xA3], op, pc);
@@ -33602,12 +33602,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "op1 = sp[-2];"
                 "op2 = sp[-1];"
                 "if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
-                "    sp[-2] = JS_NewBool(ctx, JS_VALUE_GET_INT(op1) %s JS_VALUE_GET_INT(op2));"
-                "    sp--;"
+                    "sp[-2] = JS_NewBool(ctx, JS_VALUE_GET_INT(op1) %s JS_VALUE_GET_INT(op2));"
+                    "sp--;"
                 "} else {"
-                "    if (%s(ctx, sp, %d))"
-                "        goto exception;"
-                "    sp--;"
+                    "if (%s(ctx, sp, %d))"
+                        "goto exception;"
+                    "sp--;"
                 "}"
                 "}",
                 cmpops[idx], slowcalls[idx], idx & 1);
@@ -33618,30 +33618,30 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             static const char bitops[] = "&^|";
             dbuf_printf(&dbuf,
                 "{"
-                "    JSValue op1, op2;"
-                "    op1 = sp[-2];"
-                "    op2 = sp[-1];"
-                "    if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
-                "        sp[-2] = JS_NewInt32(ctx,"
-                "                             JS_VALUE_GET_INT(op1) %c"
-                "                             JS_VALUE_GET_INT(op2));"
-                "        sp--;"
-                "    } else {"
-                "        if (js_binary_logic_slow(ctx, sp, %d))"
-                "            goto exception;"
-                "        sp--;"
-                "    }"
+                    "JSValue op1, op2;"
+                    "op1 = sp[-2];"
+                    "op2 = sp[-1];"
+                    "if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                        "sp[-2] = JS_NewInt32(ctx,"
+                                             "JS_VALUE_GET_INT(op1) %c"
+                                             "JS_VALUE_GET_INT(op2));"
+                        "sp--;"
+                    "} else {"
+                        "if (js_binary_logic_slow(ctx, sp, %d))"
+                            "goto exception;"
+                        "sp--;"
+                    "}"
                 "}",
                 bitops[op-0xAD], op);
             break;
         case 0xB0: // is_undefined_or_null:none 1 +1,-1
             dbuf_putstr(&dbuf,
                 "if (JS_VALUE_GET_TAG(sp[-1]) == JS_TAG_UNDEFINED ||"
-                "    JS_VALUE_GET_TAG(sp[-1]) == JS_TAG_NULL) {"
-                "    sp[-1] = JS_TRUE;"
+                    "JS_VALUE_GET_TAG(sp[-1]) == JS_TAG_NULL) {"
+                    "sp[-1] = JS_TRUE;"
                 "} else {"
-                "    JS_FreeValue(ctx, sp[-1]);"
-                "    sp[-1] = JS_FALSE;"
+                    "JS_FreeValue(ctx, sp[-1]);"
+                    "sp[-1] = JS_FALSE;"
                 "}");
             break;
         case 0xB1: // nop:none 1 +0,-0
@@ -33667,7 +33667,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_printf(&dbuf,
                 "*sp++ = js_closure(ctx, JS_DupValue(ctx, cpool(b, %u)), var_refs, sf);"
                 "if (unlikely(JS_IsException(sp[-1])))"
-                "    goto exception;",
+                    "goto exception;",
                 pc[1]);
             break;
         case 0xBD: // push_const8:const8 2 +1,-0
@@ -33738,22 +33738,22 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             idx = idx + 1 + (int8_t)pc[1];
             dbuf_printf(&dbuf,
                 "{"
-                "    int res;"
-                "    JSValue op1;"
-                "    op1 = sp[-1];"
-                "    if ((uint32_t)JS_VALUE_GET_TAG(op1) <= JS_TAG_UNDEFINED) {"
-                "        res = JS_VALUE_GET_INT(op1);"
-                "    } else {"
-                "        res = JS_ToBoolFree(ctx, op1);"
-                "    }"
-                "    sp--;"
-                "    if (unlikely(js_poll_interrupts(ctx))) {"
-                "        set_cur_pc(sf, (void *) %p);"
-                "        goto exception;"
-                "    }"
-                "    if (%cres) {"
-                "        goto pc%d;"
-                "    }"
+                    "int res;"
+                    "JSValue op1;"
+                    "op1 = sp[-1];"
+                    "if ((uint32_t)JS_VALUE_GET_TAG(op1) <= JS_TAG_UNDEFINED) {"
+                        "res = JS_VALUE_GET_INT(op1);"
+                    "} else {"
+                        "res = JS_ToBoolFree(ctx, op1);"
+                    "}"
+                    "sp--;"
+                    "if (unlikely(js_poll_interrupts(ctx))) {"
+                        "set_cur_pc(sf, (void *) %p);"
+                        "goto exception;"
+                    "}"
+                    "if (%cres) {"
+                        "goto pc%d;"
+                    "}"
                 "}",
                 pc, "! "[op-0xE8], idx);
             break;
@@ -33771,19 +33771,19 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0xF0: // is_undefined:none 1 +1,-1
             dbuf_putstr(&dbuf,
                 "if (JS_VALUE_GET_TAG(sp[-1]) == JS_TAG_UNDEFINED) {"
-                "    sp[-1] = JS_TRUE;"
+                    "sp[-1] = JS_TRUE;"
                 "} else {"
-                "    JS_FreeValue(ctx, sp[-1]);"
-                "    sp[-1] = JS_FALSE;"
+                    "JS_FreeValue(ctx, sp[-1]);"
+                    "sp[-1] = JS_FALSE;"
                 "}");
             break;
         case 0xF1: // is_null:none 1 +1,-1
             dbuf_putstr(&dbuf,
                 "if (JS_VALUE_GET_TAG(sp[-1]) == JS_TAG_NULL) {"
-                "    sp[-1] = JS_TRUE;"
+                    "sp[-1] = JS_TRUE;"
                 "} else {"
-                "    JS_FreeValue(ctx, sp[-1]);"
-                "    sp[-1] = JS_FALSE;"
+                    "JS_FreeValue(ctx, sp[-1]);"
+                    "sp[-1] = JS_FALSE;"
                 "}");
             break;
         case 0xF2: // typeof_is_undefined:none 1 +1,-1
@@ -33791,11 +33791,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             static int typeofs[] = {JS_ATOM_undefined, JS_ATOM_function};
             dbuf_printf(&dbuf,
                 "if (js_operator_typeof(ctx, sp[-1]) == %d) {"
-                "    JS_FreeValue(ctx, sp[-1]);"
-                "    sp[-1] = JS_TRUE;"
+                    "JS_FreeValue(ctx, sp[-1]);"
+                    "sp[-1] = JS_TRUE;"
                 "} else {"
-                "    JS_FreeValue(ctx, sp[-1]);"
-                "    sp[-1] = JS_FALSE;"
+                    "JS_FreeValue(ctx, sp[-1]);"
+                    "sp[-1] = JS_FALSE;"
                 "}",
                 typeofs[op-0xF2]);
             break;
@@ -33812,11 +33812,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
 
     static const char epilog[] =
         "exception:"
-        "    aux->sp = sp;"
-        "    return JS_EXCEPTION;"
+            "aux->sp = sp;"
+            "return JS_EXCEPTION;"
         "done:"
-        "    aux->sp = sp;"
-        "    return ret_val;"
+            "aux->sp = sp;"
+            "return ret_val;"
         "}";
 
     dbuf_put(&dbuf, (void *) epilog, sizeof(epilog));
