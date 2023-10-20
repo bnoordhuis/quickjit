@@ -33604,6 +33604,20 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}",
                 pc[1], gensym, HINT_NONE, gensym);
             break;
+        case 0x96: // lnot:none 1 +1,-1
+            dbuf_putstr(&dbuf,
+                "{"
+                "int res;"
+                "JSValue op1;"
+                "op1 = sp[-1];"
+                "if ((uint32_t)JS_VALUE_GET_TAG(op1) <= JS_TAG_UNDEFINED) {"
+                    "res = JS_VALUE_GET_INT(op1) != 0;"
+                "} else {"
+                    "res = JS_ToBoolFree(ctx, op1);"
+                "}"
+                "sp[-1] = JS_NewBool(ctx, !res);"
+                "}");
+            break;
         case 0x97: // typeof:none 1 +1,-1
             dbuf_putstr(&dbuf,
                 "{"
