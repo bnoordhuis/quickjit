@@ -32423,7 +32423,6 @@ static const char prolog[] =
     "int JS_DefineGlobalFunction(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
     "int JS_DefineGlobalVar(JSContext *ctx, JSAtom prop, int def_flags);"
     "int JS_DefinePropertyValue(JSContext *ctx, JSValueConst this_obj, JSAtom prop, JSValue val, int flags);"
-    "JSValue JS_DupValue(JSContext *ctx, JSValue v);"
     "JSValue JS_GetGlobalVar(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "JSValue JS_GetProperty(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
     "JSValue JS_NewArray(JSContext *ctx);"
@@ -32468,6 +32467,14 @@ static const char prolog[] =
     "static inline JSValue JS_AtomToValue(JSContext *ctx, JSAtom atom)"
     "{"
     "    return __JS_AtomToValue(ctx, atom, FALSE);"
+    "}"
+    "static inline JSValue JS_DupValue(JSContext *ctx, JSValueConst v)"
+    "{"
+    "    if (JS_VALUE_HAS_REF_COUNT(v)) {"
+    "        JSRefCountHeader *p = (JSRefCountHeader *)JS_VALUE_GET_PTR(v);"
+    "        p->ref_count++;"
+    "    }"
+    "    return (JSValue)v;"
     "}"
     "static inline void JS_FreeValue(JSContext *ctx, JSValue v)"
     "{"
@@ -33600,7 +33607,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_DefineGlobalFunction);
     link_symbol(JS_DefineGlobalVar);
     link_symbol(JS_DefinePropertyValue);
-    link_symbol(JS_DupValue);
     link_symbol(JS_GetGlobalVar);
     link_symbol(JS_GetProperty);
     link_symbol(JS_NewArray);
