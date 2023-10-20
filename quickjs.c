@@ -33485,6 +33485,29 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp++;",
                 op);
             break;
+        case 0x92: // dec_loc:loc8 2 +0,-0
+            gensym++;
+            idx = pc[1];
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue op1;"
+                "int val;"
+                "op1 = var_buf[%d];"
+                "if (JS_VALUE_GET_TAG(op1) == JS_TAG_INT) {"
+                    "val = JS_VALUE_GET_INT(op1);"
+                    "if (unlikely(val == %d))"
+                        "goto dec_loc_slow%d;"
+                    "var_buf[%d] = JS_NewInt32(ctx, val - 1);"
+                "} else {"
+                "dec_loc_slow%d:"
+                    "op1 = JS_DupValue(ctx, op1);"
+                    "if (js_unary_arith_slow(ctx, &op1 + 1, %d))"
+                        "goto exception;"
+                    "set_value(ctx, &var_buf[%d], op1);"
+                "}"
+                "}",
+                idx, INT32_MIN, gensym, idx, gensym, OP_dec, idx);
+            break;
         case 0x93: // inc_loc:loc8 2 +0,-0
             gensym++;
             idx = pc[1];
