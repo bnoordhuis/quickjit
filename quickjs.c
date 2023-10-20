@@ -32520,6 +32520,58 @@ static const char prolog[] =
     "}"
     ;
 
+static void add_symbols(TCCState *s)
+{
+#define add_symbol(name) tcc_add_symbol(s, #name, (void *) &name)
+    add_symbol(__JS_AtomToValue);
+    add_symbol(__JS_FreeValue);
+    add_symbol(JS_AddBrand);
+    add_symbol(JS_CallConstructorInternal);
+    add_symbol(JS_CallInternal);
+    add_symbol(JS_CheckBrand);
+    add_symbol(JS_CheckDefineGlobalVar);
+    add_symbol(JS_CheckGlobalVar);
+    add_symbol(JS_DefineGlobalFunction);
+    add_symbol(JS_DefineGlobalVar);
+    add_symbol(JS_DefinePropertyValue);
+    add_symbol(JS_EvalObject);
+    add_symbol(JS_GetGlobalVar);
+    add_symbol(JS_GetProperty);
+    add_symbol(JS_NewArray);
+    add_symbol(JS_NewObject);
+    add_symbol(JS_NewObjectProto);
+    add_symbol(JS_NewSymbolFromAtom);
+    add_symbol(JS_SetGlobalVar);
+    add_symbol(JS_Throw);
+    add_symbol(JS_ThrowReferenceError);
+    add_symbol(JS_ThrowReferenceErrorNotDefined);
+    add_symbol(JS_ThrowReferenceErrorUninitialized);
+    add_symbol(JS_ThrowReferenceErrorUninitialized2);
+    add_symbol(JS_ThrowSyntaxErrorVarRedeclaration);
+    add_symbol(JS_ThrowTypeError);
+    add_symbol(JS_ThrowTypeErrorReadOnly);
+    add_symbol(JS_ToBoolFree);
+    add_symbol(JS_ToObject);
+    add_symbol(close_lexical_var);
+    add_symbol(js_add_slow);
+    add_symbol(js_binary_arith_slow);
+    add_symbol(js_build_arguments);
+    add_symbol(js_build_mapped_arguments);
+    add_symbol(js_build_rest);
+    add_symbol(js_closure);
+    add_symbol(js_op_define_class);
+    add_symbol(js_eq_slow);
+    add_symbol(js_function_apply);
+    add_symbol(js_import_meta);
+    add_symbol(js_poll_interrupts);
+    add_symbol(js_operator_typeof);
+    add_symbol(js_relational_slow);
+    add_symbol(js_same_value);
+    add_symbol(js_strict_eq_slow);
+    add_symbol(set_value);
+#undef add_symbol
+}
+
 static const char epilog[] =
     "exception:"
     "    aux->sp = sp;"
@@ -33637,54 +33689,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     if (-1 == tcc_compile_string(s, (char *)dbuf.buf))
         goto fail;
 
-#define link_symbol(name) tcc_add_symbol(s, #name, (void *) &name)
-    link_symbol(__JS_AtomToValue);
-    link_symbol(__JS_FreeValue);
-    link_symbol(JS_AddBrand);
-    link_symbol(JS_CallConstructorInternal);
-    link_symbol(JS_CallInternal);
-    link_symbol(JS_CheckBrand);
-    link_symbol(JS_CheckDefineGlobalVar);
-    link_symbol(JS_CheckGlobalVar);
-    link_symbol(JS_DefineGlobalFunction);
-    link_symbol(JS_DefineGlobalVar);
-    link_symbol(JS_DefinePropertyValue);
-    link_symbol(JS_EvalObject);
-    link_symbol(JS_GetGlobalVar);
-    link_symbol(JS_GetProperty);
-    link_symbol(JS_NewArray);
-    link_symbol(JS_NewObject);
-    link_symbol(JS_NewObjectProto);
-    link_symbol(JS_NewSymbolFromAtom);
-    link_symbol(JS_SetGlobalVar);
-    link_symbol(JS_Throw);
-    link_symbol(JS_ThrowReferenceError);
-    link_symbol(JS_ThrowReferenceErrorNotDefined);
-    link_symbol(JS_ThrowReferenceErrorUninitialized);
-    link_symbol(JS_ThrowReferenceErrorUninitialized2);
-    link_symbol(JS_ThrowSyntaxErrorVarRedeclaration);
-    link_symbol(JS_ThrowTypeError);
-    link_symbol(JS_ThrowTypeErrorReadOnly);
-    link_symbol(JS_ToBoolFree);
-    link_symbol(JS_ToObject);
-    link_symbol(close_lexical_var);
-    link_symbol(js_add_slow);
-    link_symbol(js_binary_arith_slow);
-    link_symbol(js_build_arguments);
-    link_symbol(js_build_mapped_arguments);
-    link_symbol(js_build_rest);
-    link_symbol(js_closure);
-    link_symbol(js_op_define_class);
-    link_symbol(js_eq_slow);
-    link_symbol(js_function_apply);
-    link_symbol(js_import_meta);
-    link_symbol(js_poll_interrupts);
-    link_symbol(js_operator_typeof);
-    link_symbol(js_relational_slow);
-    link_symbol(js_same_value);
-    link_symbol(js_strict_eq_slow);
-    link_symbol(set_value);
-#undef link_symbol
+    add_symbols(s);
 
     if (-1 == tcc_relocate(s, TCC_RELOCATE_AUTO))
         goto fail;
