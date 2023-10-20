@@ -32427,6 +32427,7 @@ static const char prolog[] =
     "JSValue JS_GetGlobalVar(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "JSValue JS_GetProperty(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
     "JSValue JS_NewArray(JSContext *ctx);"
+    "JSValue JS_NewCatchOffset(JSContext *ctx, int32_t val);"
     "JSValue JS_NewObject(JSContext *ctx);"
     "JSValue JS_NewObjectProto(JSContext *ctx, JSValueConst proto);"
     "JSValue JS_NewSymbolFromAtom(JSContext *ctx, JSAtom descr, int atom_type);"
@@ -32450,6 +32451,7 @@ static const char prolog[] =
     "JSValue js_closure(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
     "int js_op_define_class(JSContext *ctx, JSValue *sp, JSAtom class_name, int class_flags, JSVarRef **cur_var_refs, JSStackFrame *sf, BOOL is_computed_name);"
     "int js_eq_slow(JSContext *ctx, JSValue *sp, BOOL is_neq);"
+    "int js_for_of_start(JSContext *ctx, JSValue *sp, BOOL is_async);"
     "JSValue js_function_apply(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic);"
     "JSValue js_import_meta(JSContext *ctx);"
     "int js_poll_interrupts(JSContext *ctx);"
@@ -32523,8 +32525,6 @@ static const char prolog[] =
 static void add_symbols(TCCState *s)
 {
 #define add_symbol(name) tcc_add_symbol(s, #name, (void *) &name)
-    add_symbol(__JS_AtomToValue);
-    add_symbol(__JS_FreeValue);
     add_symbol(JS_AddBrand);
     add_symbol(JS_CallConstructorInternal);
     add_symbol(JS_CallInternal);
@@ -32538,6 +32538,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_GetGlobalVar);
     add_symbol(JS_GetProperty);
     add_symbol(JS_NewArray);
+    add_symbol(JS_NewCatchOffset);
     add_symbol(JS_NewObject);
     add_symbol(JS_NewObjectProto);
     add_symbol(JS_NewSymbolFromAtom);
@@ -32552,6 +32553,8 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_ThrowTypeErrorReadOnly);
     add_symbol(JS_ToBoolFree);
     add_symbol(JS_ToObject);
+    add_symbol(__JS_AtomToValue);
+    add_symbol(__JS_FreeValue);
     add_symbol(close_lexical_var);
     add_symbol(js_add_slow);
     add_symbol(js_binary_arith_slow);
@@ -32559,12 +32562,13 @@ static void add_symbols(TCCState *s)
     add_symbol(js_build_mapped_arguments);
     add_symbol(js_build_rest);
     add_symbol(js_closure);
-    add_symbol(js_op_define_class);
     add_symbol(js_eq_slow);
+    add_symbol(js_for_of_start);
     add_symbol(js_function_apply);
     add_symbol(js_import_meta);
-    add_symbol(js_poll_interrupts);
+    add_symbol(js_op_define_class);
     add_symbol(js_operator_typeof);
+    add_symbol(js_poll_interrupts);
     add_symbol(js_relational_slow);
     add_symbol(js_same_value);
     add_symbol(js_strict_eq_slow);
@@ -33359,6 +33363,14 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "close_lexical_var(ctx, sf, %d, FALSE);",
                 get_u16(pc+1));
             pc += 3;
+            break;
+        case 0x7D: // for_of_start:none 1 +3,-1
+            dbuf_putstr(&dbuf,
+                "if (js_for_of_start(ctx, sp, FALSE))"
+                "    goto exception;"
+                "sp += 1;"
+                "*sp++ = JS_NewCatchOffset(ctx, 0);");
+            pc++;
             break;
         case 0x97: // typeof:none 1 +1,-1
             dbuf_putstr(&dbuf,
