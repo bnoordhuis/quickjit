@@ -33274,10 +33274,21 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0x47: // get_array_el:none 1 +1,-2
             dbuf_putstr(&dbuf,
                 "{"
-                    "JSValue val = JS_GetPropertyValue(ctx, sp[-2], sp[-1]);"
-                    "sp[-1] = val;"
-                    "if (unlikely(JS_IsException(val)))"
-                        "goto exception;"
+                "JSValue val = JS_GetPropertyValue(ctx, sp[-2], sp[-1]);"
+                "JS_FreeValue(ctx, sp[-2]);"
+                "sp[-2] = val;"
+                "sp--;"
+                "if (unlikely(JS_IsException(val)))"
+                    "goto exception;"
+                "}");
+            break;
+        case 0x48: // get_array_el2:none 1 +2,-2
+            dbuf_putstr(&dbuf,
+                "{"
+                "JSValue val = JS_GetPropertyValue(ctx, sp[-2], sp[-1]);"
+                "sp[-1] = val;"
+                "if (unlikely(JS_IsException(val)))"
+                    "goto exception;"
                 "}");
             break;
         case 0x56: // define_class:atom_u8 6 +2,-2
