@@ -32423,6 +32423,7 @@ static const char prolog[] =
     "int JS_DefineGlobalFunction(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
     "int JS_DefineGlobalVar(JSContext *ctx, JSAtom prop, int def_flags);"
     "int JS_DefinePropertyValue(JSContext *ctx, JSValueConst this_obj, JSAtom prop, JSValue val, int flags);"
+    "JSValue JS_EvalObject(JSContext *ctx, JSValueConst this_obj, JSValueConst val, int flags, int scope_idx);"
     "JSValue JS_GetGlobalVar(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "JSValue JS_GetProperty(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
     "JSValue JS_NewArray(JSContext *ctx);"
@@ -32454,6 +32455,7 @@ static const char prolog[] =
     "int js_poll_interrupts(JSContext *ctx);"
     "int js_operator_typeof(JSContext *ctx, JSValueConst op1);"
     "int js_relational_slow(JSContext *ctx, JSValue *sp, int op);"
+    "BOOL js_same_value(JSContext *ctx, JSValueConst op1, JSValueConst op2);"
     "int js_strict_eq_slow(JSContext *ctx, JSValue *sp, BOOL is_neq);"
     "void set_value(JSContext *ctx, JSValue *pval, JSValue new_val);"
     "static inline JSAtom __JS_AtomFromUInt32(uint32_t v)"
@@ -33121,6 +33123,40 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             }
             pc += 6;
             break;
+        case 0x31: // eval:npop_u16 5 +1,-1
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValueConst obj;"
+                "int call_argc = %d;"
+                "int scope_idx = %d - 1;" // XXX why -1?
+                "JSValue *call_argv = sp - call_argc;"
+                "JSValue *eval_obj = (void *) ctx + %d;"
+                "set_cur_pc(sf, (void *) %p);"
+                "if (js_same_value(ctx, call_argv[-1], *eval_obj)) {"
+                "    if (call_argc >= 1)"
+                "        obj = call_argv[0];"
+                "    else"
+                "        obj = JS_UNDEFINED;"
+                "    ret_val = JS_EvalObject(ctx, JS_UNDEFINED, obj,"
+                "                            %d, scope_idx);"
+                "} else {"
+                "    ret_val = JS_CallInternal(ctx, call_argv[-1], JS_UNDEFINED,"
+                "                              JS_UNDEFINED, call_argc, call_argv, 0);"
+                "}"
+                "if (unlikely(JS_IsException(ret_val)))"
+                "    goto exception;"
+                "for(int i = -1; i < call_argc; i++)"
+                "    JS_FreeValue(ctx, call_argv[i]);"
+                "sp -= call_argc + 1;"
+                "*sp++ = ret_val;"
+                "}",
+                /*call_argc*/get_u16(pc+1),
+                /*scope_idx*/get_u16(pc+3),
+                (int) offsetof(JSContext, eval_obj),
+                /*next opcode*/pc+5,
+                JS_EVAL_TYPE_INDIRECT);
+            pc += 5;
+            break;
         case 0x36: // check_var:atom 5 +1,-0
             dbuf_printf(&dbuf,
                 "{"
@@ -33613,6 +33649,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(JS_DefineGlobalFunction);
     link_symbol(JS_DefineGlobalVar);
     link_symbol(JS_DefinePropertyValue);
+    link_symbol(JS_EvalObject);
     link_symbol(JS_GetGlobalVar);
     link_symbol(JS_GetProperty);
     link_symbol(JS_NewArray);
@@ -33644,6 +33681,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     link_symbol(js_poll_interrupts);
     link_symbol(js_operator_typeof);
     link_symbol(js_relational_slow);
+    link_symbol(js_same_value);
     link_symbol(js_strict_eq_slow);
     link_symbol(set_value);
 #undef link_symbol
