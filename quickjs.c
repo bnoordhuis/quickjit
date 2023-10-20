@@ -33444,9 +33444,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             pc += 2;
             break;
         case 0xBD: // push_const8:const8 2 +1,-0
-            dbuf_printf(&dbuf,
-                "*sp++ = JS_DupValue(ctx, cpool(b, %u));",
-                pc[1]);
+            dbuf_printf(&dbuf, "*sp++ = JS_DupValue(ctx, cpool(b, %u));", pc[1]);
+            pc += 2;
+            break;
+        case 0xC1: // put_loc8:loc8 2 +0,-1
+            dbuf_printf(&dbuf, "*sp++ = JS_DupValue(ctx, var_buf[%d]);", pc[1]);
             pc += 2;
             break;
         case 0xC3: // get_loc0:none_loc 1 +1,-0
