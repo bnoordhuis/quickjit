@@ -33331,6 +33331,26 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}"
                 "sp--;");
             break;
+        case 0x8F: // inc:none 1 +1,-1
+            gensym++;
+            dbuf_printf(&dbuf,
+                "{"
+                "    JSValue op1;"
+                "    int val;"
+                "    op1 = sp[-1];"
+                "    if (JS_VALUE_GET_TAG(op1) == JS_TAG_INT) {"
+                "        val = JS_VALUE_GET_INT(op1);"
+                "        if (unlikely(val == %d))"
+                "            goto inc_slow%d;"
+                "        sp[-1] = JS_NewInt32(ctx, val + 1);"
+                "    } else {"
+                "    inc_slow%d:"
+                "        if (js_unary_arith_slow(ctx, sp, %d))"
+                "            goto exception;"
+                "    }"
+                "}",
+                INT32_MAX, gensym, gensym, op);
+            break;
         case 0x93: // inc_loc:loc8 2 +0,-0
             gensym++;
             idx = pc[1];
