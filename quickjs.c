@@ -32568,6 +32568,7 @@ static void add_symbols(TCCState *s)
     add_symbol(js_relational_slow);
     add_symbol(js_same_value);
     add_symbol(js_strict_eq_slow);
+    add_symbol(memset);
     add_symbol(set_value);
 #undef add_symbol
 }
@@ -33682,7 +33683,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     dbuf_put(&dbuf, (void *) epilog, sizeof(epilog));
 
     s = tcc_new();
-    if (-1 == tcc_set_options(s, "-vvv -Wall -Wunsupported -nostdinc"))
+    if (-1 == tcc_set_options(s, "-vvv -Wall -Wunsupported -nostdinc -nostdlib"))
         goto fail;
     if (-1 == tcc_set_output_type(s, TCC_OUTPUT_MEMORY))
         goto fail;
