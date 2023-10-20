@@ -32382,6 +32382,8 @@ static const char prolog[] =
     "};"
     "enum {"
     "    JS_TAG_FIRST       = -11,"
+    "    JS_TAG_SYMBOL      = -8,"
+    "    JS_TAG_STRING      = -7,"
     "    JS_TAG_OBJECT      = -1,"
     "    JS_TAG_INT         = 0,"
     "    JS_TAG_BOOL        = 1,"
@@ -32444,6 +32446,7 @@ static const char prolog[] =
     "int JS_ThrowTypeErrorReadOnly(JSContext *ctx, int flags, JSAtom atom);"
     "int JS_ToBoolFree(JSContext *ctx, JSValue val);"
     "JSValue JS_ToObject(JSContext *ctx, JSValueConst val);"
+    "JSValue JS_ToPropertyKey(JSContext *ctx, JSValueConst val);"
     "void close_lexical_var(JSContext *ctx, JSStackFrame *sf, int idx, int is_arg);"
     "int js_add_slow(JSContext *ctx, JSValue *sp);"
     "int js_binary_arith_slow(JSContext *ctx, JSValue *sp, int op);"
@@ -32497,6 +32500,10 @@ static const char prolog[] =
     "static inline JS_BOOL JS_IsException(JSValueConst v)"
     "{"
     "    return js_unlikely(JS_VALUE_GET_TAG(v) == JS_TAG_EXCEPTION);"
+    "}"
+    "static inline JS_BOOL JS_IsNull(JSValueConst v)"
+    "{"
+    "    return JS_VALUE_GET_TAG(v) == JS_TAG_NULL;"
     "}"
     "static inline JS_BOOL JS_IsObject(JSValueConst v)"
     "{"
@@ -32559,6 +32566,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_ThrowTypeErrorReadOnly);
     add_symbol(JS_ToBoolFree);
     add_symbol(JS_ToObject);
+    add_symbol(JS_ToPropertyKey);
     add_symbol(__JS_AtomToValue);
     add_symbol(__JS_FreeValue);
     add_symbol(__js_poll_interrupts);
@@ -33316,6 +33324,26 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             dbuf_printf(&dbuf,
                 "close_lexical_var(ctx, sf, %d, FALSE);",
                 get_u16(pc+1));
+            break;
+        case 0x71: // to_propkey2:none 1 +2,-2
+            dbuf_putstr(&dbuf,
+                "if (unlikely(JS_IsUndefined(sp[-2]) || JS_IsNull(sp[-2]))) {"
+                "    JS_ThrowTypeError(ctx, \"value has no property\");"
+                "    goto exception;"
+                "}"
+                "switch (JS_VALUE_GET_TAG(sp[-1])) {"
+                "case JS_TAG_INT:"
+                "case JS_TAG_STRING:"
+                "case JS_TAG_SYMBOL:"
+                "    break;"
+                "default:"
+                "    ret_val = JS_ToPropertyKey(ctx, sp[-1]);"
+                "    if (JS_IsException(ret_val))"
+                "        goto exception;"
+                "    JS_FreeValue(ctx, sp[-1]);"
+                "    sp[-1] = ret_val;"
+                "    break;"
+                "}");
             break;
         case 0x7D: // for_of_start:none 1 +3,-1
             dbuf_putstr(&dbuf,
