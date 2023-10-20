@@ -33442,6 +33442,44 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp[-1] = JS_AtomToString(ctx, atom);"
                 "}");
             break;
+        case 0x9A: // mul:none 1 +1,-2
+            gensym++;
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue op1, op2;"
+                "double d;"
+                "op1 = sp[-2];"
+                "op2 = sp[-1];"
+                "if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                    "int32_t v1, v2;"
+                    "int64_t r;"
+                    "v1 = JS_VALUE_GET_INT(op1);"
+                    "v2 = JS_VALUE_GET_INT(op2);"
+                    "r = (int64_t)v1 * v2;"
+                    "if (unlikely((int)r != r)) {"
+                        "d = (double)r;"
+                        "goto mul_fp_res%d;"
+                    "}"
+                    /* need to test zero case for -0 result */
+                    "if (unlikely(r == 0 && (v1 | v2) < 0)) {"
+                        "d = -0.0;"
+                        "goto mul_fp_res%d;"
+                    "}"
+                    "sp[-2] = JS_NewInt32(ctx, r);"
+                    "sp--;"
+                "} else if (JS_VALUE_IS_BOTH_FLOAT(op1, op2)) {"
+                    "d = JS_VALUE_GET_FLOAT64(op1) * JS_VALUE_GET_FLOAT64(op2);"
+                "mul_fp_res%d:"
+                    "sp[-2] = __JS_NewFloat64(ctx, d);"
+                    "sp--;"
+                "} else {"
+                    "if (js_binary_arith_slow(ctx, sp, %d))"
+                        "goto exception;"
+                    "sp--;"
+                "}"
+                "}",
+                gensym, gensym, gensym, op);
+            break;
         case 0x9D: // add:none 1 +1,-2
             gensym++;
             dbuf_printf(&dbuf,
