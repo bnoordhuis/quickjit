@@ -33820,6 +33820,26 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}",
                 op);
             break;
+        case 0xA1: // sar:none 1 +1,-2
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue op1, op2;"
+                "op1 = sp[-2];"
+                "op2 = sp[-1];"
+                "if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                    "uint32_t v2;"
+                    "v2 = JS_VALUE_GET_INT(op2);"
+                    "v2 &= 0x1f;"
+                    "sp[-2] = JS_NewInt32(ctx, (int)JS_VALUE_GET_INT(op1) >> v2);"
+                    "sp--;"
+                "} else {"
+                    "if (js_binary_logic_slow(ctx, sp, %d))"
+                        "goto exception;"
+                    "sp--;"
+                "}"
+                "}",
+                op);
+            break;
         case 0xA3: // lt:none 1 +1,-2
         case 0xA4: // lte:none 1 +1,-2
         case 0xA5: // gt:none 1 +1,-2
