@@ -33370,6 +33370,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 /*class_flags*/pc[5],
                 op == OP_define_class_computed);
             break;
+        case 0x5B: // get_arg:arg 3 +1,-0
+            dbuf_printf(&dbuf,
+                "sp[0] = JS_DupValue(ctx, arg_buf[%d]);"
+                "sp++;",
+                get_u16(pc));
+            break;
         case 0x61: // set_loc_uninitialized:loc 3 +0,-0
             idx = get_u16(pc+1);
             dbuf_printf(&dbuf, "set_value(ctx, &var_buf[%d], JS_UNINITIALIZED);", idx);
