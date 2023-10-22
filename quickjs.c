@@ -34030,7 +34030,19 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             break;
         case 0xEA: // goto8:label8 2 +0,-0
             idx = idx + 1 + (int8_t)pc[1];
-            dbuf_printf(&dbuf, "goto pc%d;", idx);
+            dbuf_printf(&dbuf,
+                "if (unlikely(js_poll_interrupts(ctx)))"
+                    "goto exception;"
+                "goto pc%d;",
+                idx);
+            break;
+        case 0xEB: // goto16:label16 3 +0,-0
+            idx = idx + 1 + get_i16(pc+1);
+            dbuf_printf(&dbuf,
+                "if (unlikely(js_poll_interrupts(ctx)))"
+                    "goto exception;"
+                "goto pc%d;",
+                idx);
             break;
         case 0xEC: // call0:npopx 1 +1,-1
         case 0xED: // call1:npopx 1 +1,-1
