@@ -32428,6 +32428,7 @@ static const char prolog[] =
     "JSValue JS_ConcatString(JSContext *ctx, JSValue op1, JSValue op2);"
     "int JS_DefineGlobalFunction(JSContext *ctx, JSAtom prop, JSValueConst func, int def_flags);"
     "int JS_DefineGlobalVar(JSContext *ctx, JSAtom prop, int def_flags);"
+    "int JS_DefineObjectName(JSContext *ctx, JSValueConst obj, JSAtom name, int flags);"
     "int JS_DefinePropertyValue(JSContext *ctx, JSValueConst this_obj, JSAtom prop, JSValue val, int flags);"
     "JSValue JS_EvalObject(JSContext *ctx, JSValueConst this_obj, JSValueConst val, int flags, int scope_idx);"
     "JSValue JS_GetGlobalVar(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
@@ -32554,6 +32555,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_ConcatString);
     add_symbol(JS_DefineGlobalFunction);
     add_symbol(JS_DefineGlobalVar);
+    add_symbol(JS_DefineObjectName);
     add_symbol(JS_DefinePropertyValue);
     add_symbol(JS_EvalObject);
     add_symbol(JS_GetGlobalVar);
@@ -33337,6 +33339,16 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}",
                 /*atom*/get_u32(pc+1),
                 /*flags*/JS_PROP_C_W_E|JS_PROP_THROW);
+            break;
+        case 0x4D: // set_name:atom 5 +1,-1
+            dbuf_printf(&dbuf,
+                "{"
+                "int ret = JS_DefineObjectName(ctx, sp[-1], %d, %d);"
+                "if (unlikely(ret < 0))"
+                    "goto exception;"
+                "}",
+                /*atom*/get_u32(pc+1),
+                /*flags*/JS_PROP_CONFIGURABLE);
             break;
         case 0x56: // define_class:atom_u8 6 +2,-2
         case 0x57: // define_class_computed:atom_u8 6 +3,-3
