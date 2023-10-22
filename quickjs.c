@@ -33686,6 +33686,31 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}",
                 op);
             break;
+        case 0x9C: // mod:none 1 +1,-2
+            gensym++;
+            dbuf_printf(&dbuf,
+                "{"
+                "JSValue op1, op2;"
+                "op1 = sp[-2];"
+                "op2 = sp[-1];"
+                "if (likely(JS_VALUE_IS_BOTH_INT(op1, op2))) {"
+                    "int v1, v2, r;"
+                    "v1 = JS_VALUE_GET_INT(op1);"
+                    "v2 = JS_VALUE_GET_INT(op2);"
+                    "if (unlikely(v1 < 0 || v2 <= 0))"
+                        "goto binary_arith_slow%d;"
+                    "r = v1 %% v2;"
+                    "sp[-2] = JS_NewInt32(ctx, r);"
+                    "sp--;"
+                "} else {"
+                "binary_arith_slow%d:"
+                    "if (js_binary_arith_slow(ctx, sp, %d))"
+                        "goto exception;"
+                    "sp--;"
+                "}"
+                "}",
+                gensym, gensym, op);
+            break;
         case 0x9D: // add:none 1 +1,-2
             gensym++;
             dbuf_printf(&dbuf,
