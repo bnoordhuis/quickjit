@@ -33447,6 +33447,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "sp++;",
                 get_u16(pc));
             break;
+        case 0x5C: // put_arg:arg 3 +0,-1
+            dbuf_printf(&dbuf,
+                "set_value(ctx, &arg_buf[%d], sp[-1]);"
+                "sp--;",
+                get_u16(pc+1));
+            break;
         case 0x5E: // get_var_ref:var_ref 3 +1,-0
             dbuf_printf(&dbuf,
                 "sp[0] = JS_DupValue(ctx, **pvalue(var_refs[%d]));"
