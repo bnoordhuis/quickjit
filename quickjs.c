@@ -32432,6 +32432,7 @@ static const char prolog[] =
     "int JS_DefineObjectNameComputed(JSContext *ctx, JSValueConst obj, JSValueConst str, int flags);"
     "int JS_DefinePropertyValue(JSContext *ctx, JSValueConst this_obj, JSAtom prop, JSValue val, int flags);"
     "JSValue JS_EvalObject(JSContext *ctx, JSValueConst this_obj, JSValueConst val, int flags, int scope_idx);"
+    "void JS_FreeAtom(JSContext *ctx, JSAtom v);"
     "JSValue JS_GetGlobalVar(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "int JS_GetGlobalVarRef(JSContext *ctx, JSAtom prop, JSValue *sp);"
     "JSValue JS_GetProperty(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
@@ -32459,7 +32460,9 @@ static const char prolog[] =
     "JSValue JS_ToPrimitiveFree(JSContext *ctx, JSValue val, int hint);"
     "JSValue JS_ToPropertyKey(JSContext *ctx, JSValueConst val);"
     "int JS_ToBoolFree(JSContext *ctx, JSValue val);"
+    "JSAtom JS_ValueToAtom(JSContext *ctx, JSValueConst val);"
     "void close_lexical_var(JSContext *ctx, JSStackFrame *sf, int idx, int is_arg);"
+    "BOOL is_strict_mode(JSContext *ctx);"
     "int js_add_slow(JSContext *ctx, JSValue *sp);"
     "int js_binary_arith_slow(JSContext *ctx, JSValue *sp, int op);"
     "int js_binary_logic_slow(JSContext *ctx, JSValue *sp, int op);"
@@ -32578,6 +32581,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_DefineObjectNameComputed);
     add_symbol(JS_DefinePropertyValue);
     add_symbol(JS_EvalObject);
+    add_symbol(JS_FreeAtom);
     add_symbol(JS_GetGlobalVar);
     add_symbol(JS_GetGlobalVarRef);
     add_symbol(JS_GetProperty);
@@ -32605,10 +32609,12 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_ToObject);
     add_symbol(JS_ToPrimitiveFree);
     add_symbol(JS_ToPropertyKey);
+    add_symbol(JS_ValueToAtom);
     add_symbol(__JS_AtomToValue);
     add_symbol(__JS_FreeValue);
     add_symbol(__js_poll_interrupts);
     add_symbol(close_lexical_var);
+    add_symbol(is_strict_mode);
     add_symbol(js_add_slow);
     add_symbol(js_binary_arith_slow);
     add_symbol(js_binary_logic_slow);
@@ -32678,6 +32684,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             "void **field = (void *) p + %d;"
             "return *field;"
         "}"
+        "static inline JSValue *global_obj(JSContext *ctx)"
+        "{"
+            "void **field = (void *) ctx + %d;"
+            "return *field;"
+        "}"
         "static inline int js_poll_interrupts(JSContext *ctx)"
         "{"
             "int *interrupt_counter = (void *) ctx + %d;"
@@ -32706,6 +32717,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         (int) offsetof(JSStackFrame, cur_pc),
         (int) offsetof(JSObject, u.func.function_bytecode),
         (int) offsetof(JSObject, u.func.home_object),
+        (int) offsetof(JSContext, global_obj),
         (int) offsetof(JSContext, interrupt_counter));
 
     pc = b->byte_code_buf;
@@ -32763,20 +32775,18 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
             if (b->js_mode & JS_MODE_STRICT) {
                 dbuf_putstr(&dbuf, "*sp++ = JS_DupValue(ctx, this_obj);");
             } else {
-                dbuf_printf(&dbuf,
+                dbuf_putstr(&dbuf,
                     "if (JS_TAG_OBJECT == JS_VALUE_GET_TAG(this_obj)) {"
                         "*sp++ = JS_DupValue(ctx, this_obj);"
                     "} else if (JS_TAG_NULL == JS_VALUE_GET_TAG(this_obj) ||"
                                "JS_TAG_UNDEFINED == JS_VALUE_GET_TAG(this_obj)) {"
-                        "JSValue *global_obj = (void *) ctx + %d;"
-                        "*sp++ = JS_DupValue(ctx, *global_obj);"
+                        "*sp++ = JS_DupValue(ctx, *global_obj(ctx));"
                     "} else {"
                         "JSValue val = JS_ToObject(ctx, this_obj);"
                         "if (JS_IsException(val))"
                             "goto exception;"
                         "*sp++ = JS_DupValue(ctx, val);"
-                    "}",
-                    (int) offsetof(JSContext, global_obj));
+                    "}");
             }
             break;
         case 0x09: // push_false:none 1 +1,-0
@@ -33276,6 +33286,36 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                     "goto exception;"
                 "}",
                 idx, idx);
+            break;
+        case 0x3D: // put_ref_value:none 1 +0,-3
+            dbuf_printf(&dbuf,
+                "{"
+                "int ret, flags;"
+                "flags = %d;"
+                "if (unlikely(JS_IsUndefined(sp[-3]))) {"
+                    "if (is_strict_mode(ctx)) {"
+                        "JSAtom atom = JS_ValueToAtom(ctx, sp[-2]);"
+                        "if (atom != %d) {"
+                            "JS_ThrowReferenceErrorNotDefined(ctx, atom);"
+                            "JS_FreeAtom(ctx, atom);"
+                        "}"
+                        "goto exception;"
+                    "} else {"
+                        "sp[-3] = JS_DupValue(ctx, *global_obj(ctx));"
+                    "}"
+                "} else {"
+                    "if (is_strict_mode(ctx))"
+                        "flags |= %d;"
+                "}"
+                "ret = JS_SetPropertyValue(ctx, sp[-3], sp[-2], sp[-1], flags);"
+                "JS_FreeValue(ctx, sp[-3]);"
+                "sp -= 3;"
+                "if (unlikely(ret < 0))"
+                    "goto exception;"
+                "}",
+                JS_PROP_THROW_STRICT,
+                JS_ATOM_NULL,
+                JS_PROP_NO_ADD);
             break;
         case 0x3E: // define_var:atom_u8 6 +0,-0
             dbuf_printf(&dbuf,
