@@ -32466,6 +32466,7 @@ static const char prolog[] =
     "JSValue js_build_mapped_arguments(JSContext *ctx, int argc, JSValueConst *argv, JSStackFrame *sf, int arg_count);"
     "JSValue js_build_rest(JSContext *ctx, int first, int argc, JSValueConst *argv);"
     "JSValue js_closure(JSContext *ctx, JSValue bfunc, JSVarRef **cur_var_refs, JSStackFrame *sf);"
+    "int js_not_slow(JSContext *ctx, JSValue *sp);"
     "int js_op_define_class(JSContext *ctx, JSValue *sp, JSAtom class_name, int class_flags, JSVarRef **cur_var_refs, JSStackFrame *sf, BOOL is_computed_name);"
     "int js_eq_slow(JSContext *ctx, JSValue *sp, BOOL is_neq);"
     "int js_for_of_next(JSContext *ctx, JSValue *sp, int offset);"
@@ -32617,6 +32618,7 @@ static void add_symbols(TCCState *s)
     add_symbol(js_function_apply);
     add_symbol(js_has_unscopable);
     add_symbol(js_import_meta);
+    add_symbol(js_not_slow);
     add_symbol(js_op_define_class);
     add_symbol(js_operator_typeof);
     add_symbol(js_post_inc_slow);
@@ -33705,6 +33707,19 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}"
                 "}",
                 pc[1], gensym, HINT_NONE, gensym);
+            break;
+        case 0x95: // not:none 1 +1,-1
+            dbuf_putstr(&dbuf,
+                "{"
+                "JSValue op1;"
+                "op1 = sp[-1];"
+                "if (JS_VALUE_GET_TAG(op1) == JS_TAG_INT) {"
+                    "sp[-1] = JS_NewInt32(ctx, ~JS_VALUE_GET_INT(op1));"
+                "} else {"
+                    "if (js_not_slow(ctx, sp))"
+                        "goto exception;"
+                "}"
+                "}");
             break;
         case 0x96: // lnot:none 1 +1,-1
             dbuf_putstr(&dbuf,
