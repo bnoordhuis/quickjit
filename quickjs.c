@@ -32470,6 +32470,7 @@ static const char prolog[] =
     "int js_not_slow(JSContext *ctx, JSValue *sp);"
     "int js_op_define_class(JSContext *ctx, JSValue *sp, JSAtom class_name, int class_flags, JSVarRef **cur_var_refs, JSStackFrame *sf, BOOL is_computed_name);"
     "int js_eq_slow(JSContext *ctx, JSValue *sp, BOOL is_neq);"
+    "int js_for_in_start(JSContext *ctx, JSValue *sp);"
     "int js_for_of_next(JSContext *ctx, JSValue *sp, int offset);"
     "int js_for_of_start(JSContext *ctx, JSValue *sp, BOOL is_async);"
     "JSValue js_function_apply(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic);"
@@ -32615,6 +32616,7 @@ static void add_symbols(TCCState *s)
     add_symbol(js_build_rest);
     add_symbol(js_closure);
     add_symbol(js_eq_slow);
+    add_symbol(js_for_in_start);
     add_symbol(js_for_of_next);
     add_symbol(js_for_of_start);
     add_symbol(js_function_apply);
@@ -33550,6 +33552,11 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                     "goto exception;"
                 "sp += 2;",
                 /*atom*/get_u32(pc+1));
+            break;
+        case 0x7C: // for_in_start:none 1 +1,-1
+            dbuf_putstr(&dbuf,
+                "if (js_for_in_start(ctx, sp))"
+                    "goto exception;");
             break;
         case 0x7D: // for_of_start:none 1 +3,-1
             dbuf_putstr(&dbuf,
