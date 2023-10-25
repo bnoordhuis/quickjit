@@ -32619,7 +32619,6 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
     uint8_t op;
     TCCState *s;
     DynBuf dbuf;
-    void **p;
     int call_argc;
     int gensym;
     int idx;
@@ -33373,6 +33372,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
         case 0x5B: // get_arg:arg 3 +1,-0
             dbuf_printf(&dbuf,
                 "sp[0] = JS_DupValue(ctx, arg_buf[%d]);"
+                "sp++;",
+                get_u16(pc));
+            break;
+        case 0x5E: // get_var_ref:var_ref 3 +1,-0
+            dbuf_printf(&dbuf,
+                "sp[0] = JS_DupValue(ctx, **pvalue(var_refs[%d]));"
                 "sp++;",
                 get_u16(pc));
             break;
