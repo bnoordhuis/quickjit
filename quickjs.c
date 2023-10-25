@@ -32470,6 +32470,7 @@ static const char prolog[] =
     "int js_not_slow(JSContext *ctx, JSValue *sp);"
     "int js_op_define_class(JSContext *ctx, JSValue *sp, JSAtom class_name, int class_flags, JSVarRef **cur_var_refs, JSStackFrame *sf, BOOL is_computed_name);"
     "int js_eq_slow(JSContext *ctx, JSValue *sp, BOOL is_neq);"
+    "int js_for_in_next(JSContext *ctx, JSValue *sp);"
     "int js_for_in_start(JSContext *ctx, JSValue *sp);"
     "int js_for_of_next(JSContext *ctx, JSValue *sp, int offset);"
     "int js_for_of_start(JSContext *ctx, JSValue *sp, BOOL is_async);"
@@ -32616,6 +32617,7 @@ static void add_symbols(TCCState *s)
     add_symbol(js_build_rest);
     add_symbol(js_closure);
     add_symbol(js_eq_slow);
+    add_symbol(js_for_in_next);
     add_symbol(js_for_in_start);
     add_symbol(js_for_of_next);
     add_symbol(js_for_of_start);
@@ -33564,6 +33566,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                     "goto exception;"
                 "sp += 1;"
                 "*sp++ = JS_NewCatchOffset(ctx, 0);");
+            break;
+        case 0x7F: // for_in_next:none 1 +3,-1
+            dbuf_putstr(&dbuf,
+                "if (js_for_in_next(ctx, sp))"
+                    "goto exception;"
+                "sp += 2;");
             break;
         case 0x80: // for_of_next:u8 2 +5,-3
             dbuf_printf(&dbuf,
