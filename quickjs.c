@@ -32433,6 +32433,7 @@ static const char prolog[] =
     "int JS_DefinePropertyValue(JSContext *ctx, JSValueConst this_obj, JSAtom prop, JSValue val, int flags);"
     "JSValue JS_EvalObject(JSContext *ctx, JSValueConst this_obj, JSValueConst val, int flags, int scope_idx);"
     "JSValue JS_GetGlobalVar(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
+    "int JS_GetGlobalVarRef(JSContext *ctx, JSAtom prop, JSValue *sp);"
     "JSValue JS_GetProperty(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
     "JSValue JS_GetPropertyValue(JSContext *ctx, JSValueConst this_obj, JSValue prop);"
     "int JS_HasProperty(JSContext *ctx, JSValueConst obj, JSAtom prop);"
@@ -32576,6 +32577,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_DefinePropertyValue);
     add_symbol(JS_EvalObject);
     add_symbol(JS_GetGlobalVar);
+    add_symbol(JS_GetGlobalVarRef);
     add_symbol(JS_GetProperty);
     add_symbol(JS_GetPropertyValue);
     add_symbol(JS_HasProperty);
@@ -33541,6 +33543,13 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}"
                 "}",
                 gensym);
+            break;
+        case 0x7B: // make_var_ref:atom 5 +2,-0
+            dbuf_printf(&dbuf,
+                "if (JS_GetGlobalVarRef(ctx, %d, sp))"
+                    "goto exception;"
+                "sp += 2;",
+                /*atom*/get_u32(pc+1));
             break;
         case 0x7D: // for_of_start:none 1 +3,-1
             dbuf_putstr(&dbuf,
