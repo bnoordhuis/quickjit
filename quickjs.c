@@ -33496,6 +33496,7 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 "}");
             break;
         case 0x72: // with_get_var:atom_label_u8 10 +0,-1
+        case 0x75: // with_make_ref:atom_label_u8 10 +0,-1
             gensym++;
             dbuf_printf(&dbuf,
                 "{"
@@ -33525,6 +33526,9 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                     "if (unlikely(JS_IsException(val)))"
                         "goto exception;"
                     "set_value(ctx, &sp[-1], val);");
+                break;
+            case OP_with_make_ref:
+                dbuf_putstr(&dbuf, "*sp++ = JS_AtomToValue(ctx, atom);");
                 break;
             default:
                 abort();
