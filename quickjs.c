@@ -32475,6 +32475,7 @@ static const char prolog[] =
     "JSValue js_import_meta(JSContext *ctx);"
     "int js_post_inc_slow(JSContext *ctx, JSValue *sp, int op);"
     "int js_operator_typeof(JSContext *ctx, JSValueConst op1);"
+    "JSValue js_regexp_constructor_internal(JSContext *ctx, JSValueConst ctor, JSValue pattern, JSValue bc);"
     "int js_relational_slow(JSContext *ctx, JSValue *sp, int op);"
     "BOOL js_same_value(JSContext *ctx, JSValueConst op1, JSValueConst op2);"
     "int js_strict_eq_slow(JSContext *ctx, JSValue *sp, BOOL is_neq);"
@@ -32608,6 +32609,7 @@ static void add_symbols(TCCState *s)
     add_symbol(js_op_define_class);
     add_symbol(js_operator_typeof);
     add_symbol(js_post_inc_slow);
+    add_symbol(js_regexp_constructor_internal);
     add_symbol(js_relational_slow);
     add_symbol(js_same_value);
     add_symbol(js_strict_eq_slow);
@@ -33201,6 +33203,12 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                 (int) offsetof(JSContext, eval_obj),
                 /*next opcode*/pc+5,
                 JS_EVAL_TYPE_INDIRECT);
+            break;
+        case 0x33: // regexp:none 1 +1,-2
+            dbuf_putstr(&dbuf,
+                "sp[-2] = js_regexp_constructor_internal(ctx, JS_UNDEFINED,"
+                                                        "sp[-2], sp[-1]);"
+                "sp--;");
             break;
         case 0x36: // check_var:atom 5 +1,-0
             dbuf_printf(&dbuf,
