@@ -32435,6 +32435,7 @@ static const char prolog[] =
     "JSValue JS_GetGlobalVar(JSContext *ctx, JSAtom prop, BOOL throw_ref_error);"
     "JSValue JS_GetProperty(JSContext *ctx, JSValueConst this_obj, JSAtom prop);"
     "JSValue JS_GetPropertyValue(JSContext *ctx, JSValueConst this_obj, JSValue prop);"
+    "int JS_HasProperty(JSContext *ctx, JSValueConst obj, JSAtom prop);"
     "int JS_IteratorClose(JSContext *ctx, JSValueConst enum_obj, BOOL is_exception_pending);"
     "JSValue JS_NewArray(JSContext *ctx);"
     "JSValue JS_NewCatchOffset(JSContext *ctx, int32_t val);"
@@ -32470,6 +32471,7 @@ static const char prolog[] =
     "int js_for_of_next(JSContext *ctx, JSValue *sp, int offset);"
     "int js_for_of_start(JSContext *ctx, JSValue *sp, BOOL is_async);"
     "JSValue js_function_apply(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic);"
+    "int js_has_unscopable(JSContext *ctx, JSValueConst obj, JSAtom atom);"
     "JSValue js_import_meta(JSContext *ctx);"
     "int js_post_inc_slow(JSContext *ctx, JSValue *sp, int op);"
     "int js_operator_typeof(JSContext *ctx, JSValueConst op1);"
@@ -32563,6 +32565,7 @@ static void add_symbols(TCCState *s)
     add_symbol(JS_GetGlobalVar);
     add_symbol(JS_GetProperty);
     add_symbol(JS_GetPropertyValue);
+    add_symbol(JS_HasProperty);
     add_symbol(JS_IteratorClose);
     add_symbol(JS_NewArray);
     add_symbol(JS_NewCatchOffset);
@@ -32600,6 +32603,7 @@ static void add_symbols(TCCState *s)
     add_symbol(js_for_of_next);
     add_symbol(js_for_of_start);
     add_symbol(js_function_apply);
+    add_symbol(js_has_unscopable);
     add_symbol(js_import_meta);
     add_symbol(js_op_define_class);
     add_symbol(js_operator_typeof);
@@ -33468,6 +33472,49 @@ static void js_jit(JSContext *ctx, JSFunctionBytecode *b)
                     "sp[-1] = ret_val;"
                     "break;"
                 "}");
+            break;
+        case 0x72: // with_get_var:atom_label_u8 10 +0,-1
+            gensym++;
+            dbuf_printf(&dbuf,
+                "{"
+                "JSAtom atom = %d;"
+                "int diff = %d;"
+                "int is_with = %d;"
+                "JSValue obj = sp[-1];"
+                "int ret = JS_HasProperty(ctx, obj, atom);"
+                "if (unlikely(ret < 0))"
+                    "goto exception;"
+                "if (ret) {"
+                    "if (is_with) {"
+                        "ret = js_has_unscopable(ctx, obj, atom);"
+                        "if (unlikely(ret < 0))"
+                            "goto exception;"
+                        "if (ret)"
+                            "goto no_with%d;"
+                    "}",
+                /*atom*/get_u32(pc+1),
+                /*diff*/get_u32(pc+5),
+                /*is_with*/pc[9],
+                gensym);
+            switch (op) {
+            case OP_with_get_var:
+                dbuf_putstr(&dbuf,
+                    "JSValue val = JS_GetProperty(ctx, obj, atom);"
+                    "if (unlikely(JS_IsException(val)))"
+                        "goto exception;"
+                    "set_value(ctx, &sp[-1], val);");
+                break;
+            default:
+                abort();
+            }
+            dbuf_printf(&dbuf,
+                "} else {"
+                "no_with%d:"
+                    "JS_FreeValue(ctx, sp[-1]);"
+                    "sp--;"
+                "}"
+                "}",
+                gensym);
             break;
         case 0x7D: // for_of_start:none 1 +3,-1
             dbuf_putstr(&dbuf,
